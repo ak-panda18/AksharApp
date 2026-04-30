@@ -16,6 +16,14 @@ class WordsCategoriesViewController: UIViewController {
     // MARK: - Injected
     var writingGameplayManager: WritingGameplayManager!
 
+    // MARK: - Phonics / Exercise Dependencies
+        var isExercisesMode: Bool = false
+        var phonicsGameplayManager: PhonicsGameplayManager?
+        var bundleDataLoader: BundleDataLoader?
+        var speechManager: SpeechManager?
+        var speechRecognitionManager: SpeechRecognitionManager?
+        var gameTimerManager: GameTimerManager?
+    
     // MARK: - Lifecycle
     private func verifyDependencies() {
         assert(writingGameplayManager != nil, "writingGameplayManager was not injected into \(type(of: self))")
@@ -46,6 +54,32 @@ class WordsCategoriesViewController: UIViewController {
         dialogueView.layer.masksToBounds = false
 
         [letter3, letter4, letter5, letter6, powerWords].forEach { $0?.layer.cornerRadius = 20 }
+        
+        if let img = customImage3 { letter3.image = img }
+        if let img = customImage4 { letter4.image = img }
+        if let img = customImage5 { letter5.image = img }
+        if let img = customImage6 { letter6.image = img }
+        if let img = customPowerImage { powerWords.image = img }
+        // 👇 NEW: Update title if in Exercises mode
+        if isExercisesMode {
+            
+            // Clear out the original "Word Categories" label/image from the container
+            titleView.subviews.forEach { $0.removeFromSuperview() }
+            
+            let titleLabel = UILabel()
+            titleLabel.text = "Exercises"
+            // Bumped font size from 34 to 44
+            titleLabel.font = UIFont(name: "Arial Rounded MT Bold", size: 44) ?? UIFont.boldSystemFont(ofSize: 44)
+            titleLabel.textColor = .brown
+            titleLabel.textAlignment = .center
+            titleLabel.translatesAutoresizingMaskIntoConstraints = false
+            titleView.addSubview(titleLabel)
+            
+            NSLayoutConstraint.activate([
+                titleLabel.centerXAnchor.constraint(equalTo: titleView.centerXAnchor),
+                titleLabel.centerYAnchor.constraint(equalTo: titleView.centerYAnchor)
+            ])
+        }
     }
 
     private func setupGestures() {
@@ -74,9 +108,15 @@ class WordsCategoriesViewController: UIViewController {
 
     // MARK: - Navigation Logic
     private func openCategory(_ category: TracingCategory) {
-        writingGameplayManager.lastActiveCategory = category.rawValue
+            // 👇 NEW: Intercept for Exercises mode
+            if isExercisesMode {
+                openPhonicsCover(for: category)
+                return
+            }
 
-        let index      = writingGameplayManager.getHighestUnlockedIndex(category: category.rawValue)
+            writingGameplayManager.lastActiveCategory = category.rawValue
+
+            let index      = writingGameplayManager.getHighestUnlockedIndex(category: category.rawValue)
         let storyboard = UIStoryboard(name: "Main", bundle: nil)
         let vc: UIViewController
 
@@ -102,4 +142,43 @@ class WordsCategoriesViewController: UIViewController {
 
         navigationController?.pushViewController(vc, animated: true)
     }
+    // MARK: - Phonics Routing
+        private func openPhonicsCover(for category: TracingCategory) {
+            let storyboard = UIStoryboard(name: "Main", bundle: nil)
+            guard let coverVC = storyboard.instantiateViewController(withIdentifier: "PhonicsCoverVC") as? PhonicsCoverViewController else { return }
+            
+            let targetTitle: String
+            switch category {
+            case .threeLetter: targetTitle = "Sound Detective"
+            case .fourLetter:  targetTitle = "Word Builder"
+            case .fiveLetter:  targetTitle = "Quiz My Story"
+            case .sixLetter:   targetTitle = "Rhymewords"
+            case .power:       targetTitle = "Fluency Drills"
+            default:           targetTitle = "Sound Detective"
+            }
+            
+            // Find the matching ExerciseType
+            if let exercise = ExerciseType.allCases.first(where: { $0.titleText.lowercased().contains(targetTitle.lowercased()) }) {
+                coverVC.chosenExercise = exercise
+            } else {
+                coverVC.chosenExercise = ExerciseType.allCases.first
+            }
+            
+            // Inject dependencies
+            coverVC.phonicsGameplayManager = phonicsGameplayManager
+            coverVC.bundleDataLoader = bundleDataLoader
+            coverVC.speechManager = speechManager
+            coverVC.speechRecognitionManager = speechRecognitionManager
+            coverVC.gameTimerManager = gameTimerManager
+            
+            navigationController?.pushViewController(coverVC, animated: true)
+        }
+    
+// MARK: - Changes made on 26/03/2026
+  
+    var customImage3: UIImage?
+    var customImage4: UIImage?
+    var customImage5: UIImage?
+    var customImage6: UIImage?
+    var customPowerImage: UIImage?
 }

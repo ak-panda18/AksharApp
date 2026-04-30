@@ -3,8 +3,9 @@ import UIKit
 class SpinWheelViewController: UIViewController {
 
     @IBOutlet var wheelView: UIView!
-    @IBOutlet var gameCardViews: [UIView]!
-    @IBOutlet weak var rectangularBackground: UIImageView!
+    //@IBOutlet var gameCardViews: [UIView]!
+    //@IBOutlet weak var rectangularBackground: UIImageView!
+    @IBOutlet var chooseYourOwnView: UIView!
     
     // MARK: - Injected
     var phonicsFlowManager: PhonicsFlowManager!
@@ -13,6 +14,7 @@ class SpinWheelViewController: UIViewController {
     var speechManager: SpeechManager!
     var speechRecognitionManager: SpeechRecognitionManager!
     var gameTimerManager: GameTimerManager!
+    var writingGameplayManager: WritingGameplayManager!
 
     private var pointerLayer: CALayer?
     private var tapTextLayer: CATextLayer?
@@ -22,24 +24,25 @@ class SpinWheelViewController: UIViewController {
 
     private var rimLayer: CAShapeLayer?
     private var isSpinning = false
-    private var manualModeUnlocked = false
-    private var boardLockOverlay: UIView?
+    //private var manualModeUnlocked = false
+   // private var boardLockOverlay: UIView?
 
     private func verifyDependencies() {
-        assert(phonicsFlowManager != nil, "phonicsFlowManager was not injected into \(type(of: self))")
-        assert(phonicsGameplayManager != nil, "phonicsGameplayManager was not injected into \(type(of: self))")
-        assert(bundleDataLoader != nil, "bundleDataLoader was not injected into \(type(of: self))")
-        assert(speechManager != nil, "speechManager was not injected into \(type(of: self))")
-        assert(speechRecognitionManager != nil, "speechRecognitionManager was not injected into \(type(of: self))")
-        assert(gameTimerManager != nil, "gameTimerManager was not injected into \(type(of: self))")
-    }
+            assert(phonicsFlowManager != nil, "phonicsFlowManager was not injected into \(type(of: self))")
+            assert(phonicsGameplayManager != nil, "phonicsGameplayManager was not injected into \(type(of: self))")
+            assert(bundleDataLoader != nil, "bundleDataLoader was not injected into \(type(of: self))")
+            assert(speechManager != nil, "speechManager was not injected into \(type(of: self))")
+            assert(speechRecognitionManager != nil, "speechRecognitionManager was not injected into \(type(of: self))")
+            assert(gameTimerManager != nil, "gameTimerManager was not injected into \(type(of: self))")
+            
+            // Add this new line:
+            assert(writingGameplayManager != nil, "writingGameplayManager was not injected into \(type(of: self))")
+        }
 
     override func viewDidLoad() {
         super.viewDidLoad()
         verifyDependencies()
-        setupGameCards()
-        setGameCardsEnabled(false)
-        lockBoard()
+        setupChooseYourOwnView()
     }
 
     override func viewDidLayoutSubviews() {
@@ -71,7 +74,7 @@ class SpinWheelViewController: UIViewController {
     @objc private func wheelTapped() {
         guard !isSpinning else { return }
         isSpinning = true
-        setGameCardsEnabled(false)
+        //setGameCardsEnabled(false)
 
         tapTextLayer?.removeFromSuperlayer()
         tapTextLayer = nil
@@ -99,94 +102,105 @@ class SpinWheelViewController: UIViewController {
 
     private func resetWheelInteraction() {
         isSpinning = false
-        setGameCardsEnabled(true)
+        //setGameCardsEnabled(true)
         wheelView.isUserInteractionEnabled = true
         startIdleAnimations()
     }
 
     // MARK: - Game Cards
-    private func setupGameCards() {
-        let exercises = ExerciseType.allCases
+    private func setupChooseYourOwnView() {
+        let tap = UITapGestureRecognizer(target: self, action: #selector(chooseYourOwnTapped))
+        chooseYourOwnView.addGestureRecognizer(tap)
+        chooseYourOwnView.isUserInteractionEnabled = true
+    }
 
-        let colors: [UIColor] = [
-            UIColor(red: 1.00, green: 0.92, blue: 0.60, alpha: 1),
-            UIColor(red: 0.85, green: 0.75, blue: 0.95, alpha: 1),
-            UIColor(red: 0.68, green: 0.85, blue: 0.95, alpha: 1),
-            UIColor(red: 0.75, green: 0.90, blue: 0.75, alpha: 1),
-            UIColor(red: 1.00, green: 0.70, blue: 0.70, alpha: 1)
-        ]
-
-        for (index, card) in gameCardViews.enumerated() {
-            card.backgroundColor = colors[index]
-            card.layer.cornerRadius = 18
-            card.clipsToBounds = true
-            card.layer.borderWidth = 2
-            card.layer.borderColor = UIColor(red: 198/255, green: 134/255, blue: 45/255, alpha: 1).cgColor
-
-            card.subviews.forEach { $0.removeFromSuperview() }
-
-            let label = UILabel()
-            label.text = exercises[index].titleText
-            label.textAlignment = .center
-            label.textColor = .brown
-            label.font = UIFont(name: "Arial Rounded MT Bold", size: 20)
-            label.numberOfLines = 2
-            label.translatesAutoresizingMaskIntoConstraints = false
-            card.addSubview(label)
-
-            NSLayoutConstraint.activate([
-                label.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-                label.centerYAnchor.constraint(equalTo: card.centerYAnchor),
-                label.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 6),
-                label.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -6)
-            ])
-
-            card.tag = index
-
-            let tap = UITapGestureRecognizer(target: self, action: #selector(cardTapped(_:)))
-            card.addGestureRecognizer(tap)
-            card.isUserInteractionEnabled = true
-        }
+    @objc private func chooseYourOwnTapped() {
+        // This immediately brings up the PIN gate
+        showParentGate()
     }
     
-    private func lockBoard() {
-
-        guard let boardContainer = rectangularBackground.superview else { return }
-
-        boardContainer.bringSubviewToFront(rectangularBackground)
-
-        let lockImage = UIImageView(image: UIImage(systemName: "lock.fill"))
-        lockImage.tintColor = .brown
-        lockImage.translatesAutoresizingMaskIntoConstraints = false
-        lockImage.contentMode = .scaleAspectFit
-
-        rectangularBackground.addSubview(lockImage)
-
-        NSLayoutConstraint.activate([
-            lockImage.centerXAnchor.constraint(equalTo: rectangularBackground.centerXAnchor),
-            lockImage.centerYAnchor.constraint(equalTo: rectangularBackground.centerYAnchor),
-            lockImage.widthAnchor.constraint(equalToConstant: 55),
-            lockImage.heightAnchor.constraint(equalToConstant: 55)
-        ])
-
-        rectangularBackground.isUserInteractionEnabled = true
-
-        let tap = UITapGestureRecognizer(target: self, action: #selector(boardLockedTapped))
-        rectangularBackground.addGestureRecognizer(tap)
-    }
-
-    private func setGameCardsEnabled(_ enabled: Bool) {
-        for card in gameCardViews {
-            card.isUserInteractionEnabled = enabled
-            card.alpha = enabled ? 1.0 : 0.5
-        }
-    }
-    
-    @objc private func boardLockedTapped() {
-        if !manualModeUnlocked {
-            showParentGate()
-        }
-    }
+//    private func setupGameCards() {
+//        let exercises = ExerciseType.allCases
+//
+//        let colors: [UIColor] = [
+//            UIColor(red: 1.00, green: 0.92, blue: 0.60, alpha: 1),
+//            UIColor(red: 0.85, green: 0.75, blue: 0.95, alpha: 1),
+//            UIColor(red: 0.68, green: 0.85, blue: 0.95, alpha: 1),
+//            UIColor(red: 0.75, green: 0.90, blue: 0.75, alpha: 1),
+//            UIColor(red: 1.00, green: 0.70, blue: 0.70, alpha: 1)
+//        ]
+//
+//        for (index, card) in gameCardViews.enumerated() {
+//            card.backgroundColor = colors[index]
+//            card.layer.cornerRadius = 18
+//            card.clipsToBounds = true
+//            card.layer.borderWidth = 2
+//            card.layer.borderColor = UIColor(red: 198/255, green: 134/255, blue: 45/255, alpha: 1).cgColor
+//
+//            card.subviews.forEach { $0.removeFromSuperview() }
+//
+//            let label = UILabel()
+//            label.text = exercises[index].titleText
+//            label.textAlignment = .center
+//            label.textColor = .brown
+//            label.font = UIFont(name: "Arial Rounded MT Bold", size: 20)
+//            label.numberOfLines = 2
+//            label.translatesAutoresizingMaskIntoConstraints = false
+//            card.addSubview(label)
+//
+//            NSLayoutConstraint.activate([
+//                label.centerXAnchor.constraint(equalTo: card.centerXAnchor),
+//                label.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+//                label.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 6),
+//                label.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -6)
+//            ])
+//
+//            card.tag = index
+//
+//            let tap = UITapGestureRecognizer(target: self, action: #selector(cardTapped(_:)))
+//            card.addGestureRecognizer(tap)
+//            card.isUserInteractionEnabled = true
+//        }
+//    }
+//    
+//    private func lockBoard() {
+//
+//        guard let boardContainer = rectangularBackground.superview else { return }
+//
+//        boardContainer.bringSubviewToFront(rectangularBackground)
+//
+//        let lockImage = UIImageView(image: UIImage(systemName: "lock.fill"))
+//        lockImage.tintColor = .brown
+//        lockImage.translatesAutoresizingMaskIntoConstraints = false
+//        lockImage.contentMode = .scaleAspectFit
+//
+//        rectangularBackground.addSubview(lockImage)
+//
+//        NSLayoutConstraint.activate([
+//            lockImage.centerXAnchor.constraint(equalTo: rectangularBackground.centerXAnchor),
+//            lockImage.centerYAnchor.constraint(equalTo: rectangularBackground.centerYAnchor),
+//            lockImage.widthAnchor.constraint(equalToConstant: 55),
+//            lockImage.heightAnchor.constraint(equalToConstant: 55)
+//        ])
+//
+//        rectangularBackground.isUserInteractionEnabled = true
+//
+//        let tap = UITapGestureRecognizer(target: self, action: #selector(boardLockedTapped))
+//        rectangularBackground.addGestureRecognizer(tap)
+//    }
+//
+//    private func setGameCardsEnabled(_ enabled: Bool) {
+//        for card in gameCardViews {
+//            card.isUserInteractionEnabled = enabled
+//            card.alpha = enabled ? 1.0 : 0.5
+//        }
+//    }
+//    
+//    @objc private func boardLockedTapped() {
+//        if !manualModeUnlocked {
+//            showParentGate()
+//        }
+//    }
     
     private func shakeView(_ view: UIView) {
 
@@ -249,17 +263,9 @@ class SpinWheelViewController: UIViewController {
         unlockButton.addAction(UIAction { _ in
 
             if field.text == "24" {
-
-                self.manualModeUnlocked = true
-                self.setGameCardsEnabled(true)
-
-                self.rectangularBackground.subviews.forEach { $0.removeFromSuperview() }
-                self.rectangularBackground.superview?.sendSubviewToBack(self.rectangularBackground)
-
                 overlay.removeFromSuperview()
-
+                self.navigateToWordsCategories()
             } else {
-
                 self.shakeView(field)
                 field.text = ""
             }
@@ -301,17 +307,17 @@ class SpinWheelViewController: UIViewController {
         ])
     }
 
-    @objc private func cardTapped(_ sender: UITapGestureRecognizer) {
-
-        guard manualModeUnlocked else {
-            showParentGate()
-            return
-        }
-
-        guard let view = sender.view else { return }
-        selectedExercise = ExerciseType.allCases[view.tag]
-        goToCover()
-    }
+//    @objc private func cardTapped(_ sender: UITapGestureRecognizer) {
+//
+//        guard manualModeUnlocked else {
+//            showParentGate()
+//            return
+//        }
+//
+//        guard let view = sender.view else { return }
+//        selectedExercise = ExerciseType.allCases[view.tag]
+//        goToCover()
+//    }
 
     // MARK: - Spin
     private func spinWheel() {
@@ -584,5 +590,29 @@ class SpinWheelViewController: UIViewController {
     // MARK: - Actions
     @IBAction func homeButtonTapped(_ sender: UIButton) {
         navigationController?.popToRootViewController(animated: true)
+    }
+    private func navigateToWordsCategories() {
+        let sb = UIStoryboard(name: "Main", bundle: nil)
+        guard let wordsVC = sb.instantiateViewController(withIdentifier: "WordsCategoriesViewController") as? WordsCategoriesViewController else { return }
+        
+        // Pass the custom images
+        wordsVC.customImage3 = UIImage(named: "sound_detective")
+        wordsVC.customImage4 = UIImage(named: "word_builder")
+        wordsVC.customImage5 = UIImage(named: "quiz_my_story")
+        wordsVC.customImage6 = UIImage(named: "rhyme_words")
+        wordsVC.customPowerImage = UIImage(named: "fluency_drills")
+        
+        // Pass the injected dependency!
+        wordsVC.writingGameplayManager = self.writingGameplayManager
+        
+        // 👇 NEW: Pass the mode flag and phonics dependencies
+        wordsVC.isExercisesMode = true
+        wordsVC.phonicsGameplayManager = self.phonicsGameplayManager
+        wordsVC.bundleDataLoader = self.bundleDataLoader
+        wordsVC.speechManager = self.speechManager
+        wordsVC.speechRecognitionManager = self.speechRecognitionManager
+        wordsVC.gameTimerManager = self.gameTimerManager
+        
+        navigationController?.pushViewController(wordsVC, animated: true)
     }
 }

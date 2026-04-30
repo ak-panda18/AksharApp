@@ -13,6 +13,7 @@ final class CheckpointHistoryManager {
     }
 
     // MARK: - Fetching
+
     func getAllAttempts() -> [CheckpointAttempt] {
         let request: NSFetchRequest<CheckpointAttemptEntity> = CheckpointAttemptEntity.fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
@@ -43,6 +44,7 @@ final class CheckpointHistoryManager {
     }
 
     // MARK: - Checkpoint Completion (coordinates all three writes)
+
     func completeCheckpoint(
         attempt: CheckpointAttempt,
         accuracy: Double,
@@ -78,6 +80,7 @@ final class CheckpointHistoryManager {
     }
 
     // MARK: - Saving
+
     func save(attempt: CheckpointAttempt) {
         let entity = CheckpointAttemptEntity(context: coreData.context)
         entity.id               = UUID()
@@ -86,9 +89,12 @@ final class CheckpointHistoryManager {
         entity.accuracy         = Int64(attempt.accuracy)
         entity.timestamp        = attempt.timestamp
 
-        for word in attempt.spokenWords {
+        // Store each word with its position index so the original spoken
+        // order can be recovered on fetch (Set is unordered).
+        for (i, word) in attempt.spokenWords.enumerated() {
             let wordEntity = SpokenWordEntity(context: coreData.context)
             wordEntity.word    = word
+            wordEntity.order   = Int32(i)
             wordEntity.attempt = entity
         }
 
@@ -96,14 +102,19 @@ final class CheckpointHistoryManager {
     }
 
     // MARK: - Legacy Migration
+
     func migrateLegacySpokenWords() {}
 
     // MARK: - Private
+
     private func fetchAndMap(request: NSFetchRequest<CheckpointAttemptEntity>) -> [CheckpointAttempt] {
         do {
             return try coreData.context.fetch(request).map { entity in
-                let words: [String]
-                words = (entity.words as? Set<SpokenWordEntity>)?.compactMap { $0.word } ?? []
+                // Sort by `order` to restore the sequence in which words were spoken.
+                // Pre-fix records that have no order value sort stably at position 0.
+                let words = ((entity.words as? Set<SpokenWordEntity>) ?? [])
+                    .sorted { $0.order < $1.order }
+                    .compactMap { $0.word }
                 return CheckpointAttempt(
                     storyTitle:       entity.storyTitle ?? "",
                     checkpointNumber: Int(entity.checkpointNumber),

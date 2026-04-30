@@ -29,6 +29,12 @@ final class ReadingPreviewViewController: UIViewController {
     @IBOutlet weak var readButton2: UIButton!
     @IBOutlet weak var readButton1: UIButton!
     
+    
+    @IBOutlet var stackView1: UIView!
+    @IBOutlet var stackView2: UIView!
+    @IBOutlet var stackView3: UIView!
+    @IBOutlet var stackView4: UIView!
+    
     // MARK: - Injected
     var storyManager: StoryManager!
     var childManager: ChildManager!
@@ -80,6 +86,17 @@ final class ReadingPreviewViewController: UIViewController {
         glowStopTimer?.invalidate()
         cancelHighlight()
     }
+    
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+
+        let buttons = [readButton1, readButton2, readButton3, readButton4]
+
+        for button in buttons {
+            button?.layer.cornerRadius = (button?.bounds.height ?? 0) / 2
+            button?.clipsToBounds = true
+        }
+    }
 
     // MARK: - Level Handling
     private func loadCurrentLevel() {
@@ -97,12 +114,22 @@ final class ReadingPreviewViewController: UIViewController {
         let backgrounds = [card1bg_view, card2bg_view, card3bg_view, card4bg_view]
         let progressViews = [progress1, progress2, progress3, progress4]
         let buttons = [readButton1, readButton2, readButton3, readButton4]
-
+        
+        // 👇 NEW: checkpoint stacks
+        let checkpointStacks = [
+            stackView1,
+            stackView2,
+            stackView3,
+            stackView4
+        ]
+        
         for i in 0..<4 {
-            guard let cover = covers[i], let title = titles[i],
-                  let bg = backgrounds[i], let progress = progressViews[i],
+            guard let cover = covers[i],
+                  let title = titles[i],
+                  let bg = backgrounds[i],
+                  let progress = progressViews[i],
                   let button = buttons[i] else { continue }
-
+            
             if i < levelStories.count {
                 let story = levelStories[i]
                 
@@ -114,11 +141,43 @@ final class ReadingPreviewViewController: UIViewController {
                 cover.layer.cornerRadius = 20
                 bg.layer.masksToBounds = false
                 
+                // EXISTING: button + progress logic
                 updateReadButton(button: button, progressView: progress, story: story)
+                
+                // 👇 NEW: CHECKPOINT LOGIC
+                if let container = checkpointStacks[i] {
+                    let (savedIndex, isCompleted) = storyManager.getProgress(for: story.id)
+
+                    configureCheckpoints(
+                        container: container,
+                        story: story,
+                        currentPage: savedIndex,
+                        isCompleted: isCompleted
+                    )
+                }
                 
             } else {
                 bg.isHidden = true
             }
+        }
+    }
+    private func getCheckpointPositions(
+        for story: Story,
+        currentPage: Int
+    ) -> [(position: Float, completed: Bool)] {
+
+        let totalPages = Float(story.content.count)
+
+        return story.content.compactMap { page -> (Float, Bool)? in
+            guard page.checkAfter else { return nil }
+            
+            // Position along the bar
+            let position = Float(page.pageNumber - 1) / (totalPages - 1)
+            
+            // Use StoryManager to check true completion in CoreData
+            let isDone = storyManager.isCheckpointCompleted(storyId: story.id, checkpointText: page.text)
+            
+            return (position, isDone)
         }
     }
     
@@ -129,38 +188,57 @@ final class ReadingPreviewViewController: UIViewController {
         nextLevelButton.isEnabled = levelIndex < difficultyLevels.count - 1
         nextLevelButton.alpha = levelIndex < difficultyLevels.count - 1 ? 1.0 : 0.4
     }
-    
-    private func updateReadButton(button: UIButton, progressView: UIProgressView, story: Story) {
 
+    private func updateReadButton(button: UIButton, progressView: UIProgressView, story: Story) {
         let (savedIndex, isCompleted) = storyManager.getProgress(for: story.id)
         let totalPages = max(1, story.content.count)
 
         var title = "Read"
-
+        
+        button.backgroundColor = .systemGreen
+        button.layer.cornerRadius = button.bounds.height / 2
+        
         if isCompleted {
             title = "Read Again"
             progressView.progress = 1.0
             progressView.isHidden = false
+            button.backgroundColor = .systemGreen
         }
         else if savedIndex > 0 {
             title = "Continue"
             progressView.progress = Float(savedIndex) / Float(totalPages)
             progressView.isHidden = false
+            button.configuration = nil
+            button.backgroundColor = .systemBlue
         }
         else {
             title = "Read"
             progressView.progress = 0.0
             progressView.isHidden = true
+            
+            button.backgroundColor = .systemGreen
         }
 
         let font = UIFont.systemFont(ofSize: 20, weight: .semibold)
-
         let attributedTitle = NSAttributedString(
             string: title,
-            attributes: [.font: font]
+            attributes: [.font: font, .foregroundColor: UIColor.white]
         )
 
         button.setAttributedTitle(attributedTitle, for: .normal)
+    }
+    private func getCompletedCheckpoints(for story: Story) -> Int {
+        return story.content.filter { page in
+            page.checkAfter &&
+            storyManager.isCheckpointCompleted(
+                storyId: story.id,
+                checkpointText: page.text
+            )
+        }.count
+    }
+
+    private func getTotalCheckpoints(for story: Story) -> Int {
+        return story.content.filter { $0.checkAfter }.count
     }
     
     // MARK: - Glow Effect
@@ -294,6 +372,116 @@ final class ReadingPreviewViewController: UIViewController {
         }
 
     // MARK: - Styling
+    private func configureCheckpoints(
+            container: UIView,
+            story: Story,
+            currentPage: Int,
+            isCompleted: Bool
+    ) {
+        
+        container.layoutIfNeeded()
+        container.subviews.forEach { $0.removeFromSuperview() }
+        container.clipsToBounds = false
+        
+        let checkpoints = getCheckpointPositions(
+            for: story,
+            currentPage: currentPage
+        )
+        
+        let width = container.bounds.width
+        let height: CGFloat = 12
+        
+        let padding: CGFloat = 30
+        let usableWidth = width - (2 * padding)
+        
+        let green = UIColor(red: 0.22, green: 0.73, blue: 0.35, alpha: 1)
+        
+        // 🔹 BASE LINE
+        let baseLine = UIView(
+            frame: CGRect(
+                x: padding,
+                y: height/2 - 2,
+                width: usableWidth,
+                height: 4
+            )
+        )
+        baseLine.backgroundColor = UIColor.systemGray5
+        container.addSubview(baseLine)
+        
+        // 🔹 CONTINUOUS PROGRESS (page-based)
+        let totalPages = max(1, story.content.count)
+        
+        let progressRatio: CGFloat = isCompleted
+        ? 1.0
+        : CGFloat(currentPage) / CGFloat(totalPages)
+        
+        let progressLine = UIView(
+            frame: CGRect(
+                x: padding,
+                y: height/2 - 2,
+                width: progressRatio * usableWidth,
+                height: 4
+            )
+        )
+        progressLine.backgroundColor = green
+        container.addSubview(progressLine)
+        
+        // 🔹 NODES (milestones)
+        let nextIndex = currentPage > 0 ? checkpoints.firstIndex(where: { !$0.completed }) : nil
+        
+        for (index, checkpoint) in checkpoints.enumerated() {
+            
+            let x = padding + CGFloat(checkpoint.position) * usableWidth
+            
+            let node = UIView(
+                frame: CGRect(x: x - 6, y: 0, width: 12, height: 12)
+            )
+            node.layer.cornerRadius = 6
+            
+            if checkpoint.completed {
+                // ● Completed
+                node.backgroundColor = green
+            }
+            else if index == nextIndex {
+                // ◎ Next milestone (bullseye)
+                node.backgroundColor = .clear
+                node.layer.borderWidth = 2
+                node.layer.borderColor = green.cgColor
+                
+                let innerDot = UIView(frame: CGRect(x: 3, y: 3, width: 6, height: 6))
+                innerDot.layer.cornerRadius = 3
+                innerDot.backgroundColor = green
+                node.addSubview(innerDot)
+            }
+            else {
+                // · Future
+                node.backgroundColor = UIColor.systemGray4
+                node.frame.size = CGSize(width: 8, height: 8)
+                node.layer.cornerRadius = 4
+                node.frame.origin.x = x - 4
+                node.frame.origin.y = 2
+            }
+            
+            container.addSubview(node)
+            
+            // 👇 NEW: Hovering Bullseye Logic
+            if checkpoint.completed || index == nextIndex {
+                let isGrayscale = (index == nextIndex) // Grayscale if it's the next target
+                let emojiImageView = UIImageView(image: getBullseyeImage(isGrayscale: isGrayscale))
+                
+                // Position it hovering perfectly above the node
+                emojiImageView.frame = CGRect(
+                    x: x - 10,   // Center it over the node (20 width / 2)
+                    y: -22,      // Shift it up to hover above the bar
+                    width: 20,
+                    height: 20
+                )
+                
+                container.addSubview(emojiImageView)
+            }
+        }
+    }
+    
     private func styleCards() {
         let borderColor = UIColor(
             red: 250/255,
@@ -349,4 +537,40 @@ final class ReadingPreviewViewController: UIViewController {
             animations: nil
         )
     }
+    // MARK: - Hovering Emoji Helper
+        private func getBullseyeImage(isGrayscale: Bool) -> UIImage? {
+            let size = CGSize(width: 20, height: 20)
+            UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
+            
+            let text = "🎯"
+            let attributes: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: 14)]
+            let stringSize = text.size(withAttributes: attributes)
+            let rect = CGRect(
+                x: (size.width - stringSize.width) / 2,
+                y: (size.height - stringSize.height) / 2,
+                width: stringSize.width,
+                height: stringSize.height
+            )
+            text.draw(in: rect, withAttributes: attributes)
+            
+            let image = UIGraphicsGetImageFromCurrentImageContext()
+            UIGraphicsEndImageContext()
+            
+            // If we don't need grayscale, just return the colorful emoji
+            guard isGrayscale, let originalImage = image, let ciImage = CIImage(image: originalImage) else {
+                return image
+            }
+            
+            // Apply zero saturation for the grayscale look
+            let filter = CIFilter(name: "CIColorControls")
+            filter?.setValue(ciImage, forKey: kCIInputImageKey)
+            filter?.setValue(0.0, forKey: kCIInputSaturationKey)
+            
+            let context = CIContext(options: nil)
+            if let output = filter?.outputImage, let cgImage = context.createCGImage(output, from: output.extent) {
+                return UIImage(cgImage: cgImage, scale: originalImage.scale, orientation: originalImage.imageOrientation)
+            }
+            
+            return image
+        }
 }

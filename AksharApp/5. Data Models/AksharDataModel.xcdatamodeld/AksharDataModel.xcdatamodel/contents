@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="24512" systemVersion="25C56" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="24512" systemVersion="25E246" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
     <entity name="CheckpointAttemptEntity" representedClassName="CheckpointAttemptEntity" syncable="YES" codeGenerationType="class">
         <attribute name="accuracy" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="checkpointNumber" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
@@ -59,6 +59,7 @@
         <relationship name="story" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="StoryEntity" inverseName="readingSessions" inverseEntity="StoryEntity"/>
     </entity>
     <entity name="SpokenWordEntity" representedClassName="SpokenWordEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="order" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="word" optional="YES" attributeType="String"/>
         <relationship name="attempt" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CheckpointAttemptEntity" inverseName="words" inverseEntity="CheckpointAttemptEntity"/>
     </entity>
@@ -71,12 +72,19 @@
         <relationship name="completions" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CheckpointCompletionEntity" inverseName="story" inverseEntity="CheckpointCompletionEntity"/>
         <relationship name="readingSessions" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ReadingSessionEntity" inverseName="story" inverseEntity="ReadingSessionEntity"/>
     </entity>
+    <entity name="WritingMistakeEntity" representedClassName="WritingMistakeEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="compositeKey" optional="YES" attributeType="String"/>
+        <attribute name="mistakeCount" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="progress" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WritingProgressEntity" inverseName="mistakes" inverseEntity="WritingProgressEntity"/>
+    </entity>
     <entity name="WritingProgressEntity" representedClassName="WritingProgressEntity" syncable="YES" codeGenerationType="class">
         <attribute name="childId" optional="YES" attributeType="String"/>
         <attribute name="lastActiveCategory" optional="YES" attributeType="String"/>
         <attribute name="mistakeCountsData" optional="YES" attributeType="String"/>
         <attribute name="name" optional="YES" attributeType="String"/>
         <attribute name="unlockedIndicesData" optional="YES" attributeType="String"/>
+        <relationship name="mistakes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="WritingMistakeEntity" inverseName="progress" inverseEntity="WritingMistakeEntity"/>
+        <relationship name="unlocks" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="WritingUnlockEntity" inverseName="progress" inverseEntity="WritingUnlockEntity"/>
     </entity>
     <entity name="WritingSessionEntity" representedClassName="WritingSessionEntity" syncable="YES" codeGenerationType="class">
         <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -85,5 +93,10 @@
         <attribute name="numbersAccuracy" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="wordsAccuracy" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <relationship name="child" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ChildEntity" inverseName="writingSessions" inverseEntity="ChildEntity"/>
+    </entity>
+    <entity name="WritingUnlockEntity" representedClassName="WritingUnlockEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="category" optional="YES" attributeType="String"/>
+        <attribute name="unlockedIndex" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="progress" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WritingProgressEntity" inverseName="unlocks" inverseEntity="WritingProgressEntity"/>
     </entity>
 </model>

@@ -8,6 +8,9 @@ final class ReadingProgressStore {
 
     private let coreData: CoreDataStack
 
+    // Injected after both objects are created in AppDependencyContainer.
+    weak var syncService: FirestoreSyncService?
+
     init(coreDataStack: CoreDataStack) {
         self.coreData = coreDataStack
     }
@@ -39,6 +42,7 @@ final class ReadingProgressStore {
             entity.lastReadDate  = Date()
             if let completed = didComplete { entity.isCompleted = completed }
             coreData.saveContext()
+            syncService?.pushReadingProgress(storyId: storyId, pageIndex: pageIndex, isCompleted: entity.isCompleted)
         } catch {
             logger.error("ReadingProgressStore: saveProgress failed – \(error)")
         }
@@ -90,7 +94,7 @@ final class ReadingProgressStore {
         }
     }
 
-    // MARK: - Legacy Migration 
+    // MARK: - Legacy Migration
     func migrateLegacyCheckpointStrings() {}
 
     // MARK: - Private Helpers

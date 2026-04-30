@@ -10,7 +10,8 @@ class SignInViewController: UIViewController, UITextFieldDelegate {
 
     @IBOutlet var textFields: [UITextField]!
     @IBOutlet var scrollView: UIScrollView!
-
+    @IBOutlet weak var googleButton: UIButton!
+    
     var childManager: ChildManager!
 
     private func verifyDependencies() {
@@ -27,6 +28,8 @@ class SignInViewController: UIViewController, UITextFieldDelegate {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         styleTextFields()
+        googleButton.layer.borderColor = UIColor(red: 198/255.0,green: 160/255.0,blue: 74/255.0,alpha: 1.0).cgColor
+        googleButton.layer.borderWidth = 1
     }
 
     // MARK: - Email Sign In

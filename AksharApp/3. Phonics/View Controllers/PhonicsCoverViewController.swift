@@ -74,13 +74,10 @@ class PhonicsCoverViewController: UIViewController {
     }
 
     @IBAction func backButtonTapped(_ sender: Any) {
-        for vc in navigationController?.viewControllers ?? [] {
-            if vc is SpinWheelViewController {
-                navigationController?.popToViewController(vc, animated: true)
-                return
-            }
+            // Pops the current view controller off the stack,
+            // returning to whichever screen pushed it here.
+            navigationController?.popViewController(animated: true)
         }
-    }
 
     @IBAction func homeButtonTapped(_ sender: Any) {
         goHomeFromPhonics()

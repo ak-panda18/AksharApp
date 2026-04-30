@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="24506" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="fsq-Xf-QK8">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="24765" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="fsq-Xf-QK8">
     <device id="ipad10_2" orientation="portrait" layout="fullscreen" appearance="light"/>
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="24504"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="24743"/>
         <capability name="Image references" minToolsVersion="12.0"/>
         <capability name="Safe area layout guides" minToolsVersion="9.0"/>
         <capability name="Stack View standard spacing" minToolsVersion="9.0"/>
@@ -294,25 +294,30 @@
                                                     <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" spacing="16" translatesAutoresizingMaskIntoConstraints="NO" id="eqX-29-kxg">
                                                         <rect key="frame" x="150" y="540.5" width="260" height="96"/>
                                                         <subviews>
-                                                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="NjA-gc-qg1" userLabel="appleButton">
+                                                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="left" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="NjA-gc-qg1" userLabel="appleButton">
                                                                 <rect key="frame" x="0.0" y="0.0" width="260" height="40"/>
                                                                 <constraints>
                                                                     <constraint firstAttribute="height" constant="40" id="gXX-hn-DdS"/>
                                                                     <constraint firstAttribute="width" relation="greaterThanOrEqual" constant="260" id="qr7-Ci-7Wd"/>
                                                                 </constraints>
                                                                 <state key="normal" title="Button"/>
-                                                                <buttonConfiguration key="configuration" style="filled" title="Sign In with Apple" cornerStyle="capsule">
+                                                                <buttonConfiguration key="configuration" style="filled" title="Sign In with Apple" imagePadding="13" cornerStyle="capsule">
+                                                                    <imageReference key="image" image="apple.logo" catalog="system" symbolScale="large"/>
+                                                                    <directionalEdgeInsets key="contentInsets" top="0.0" leading="41" bottom="0.0" trailing="0.0"/>
                                                                     <color key="baseBackgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                                                 </buttonConfiguration>
                                                             </button>
-                                                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="Rl8-zx-52y" userLabel="googleButton">
+                                                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="left" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="Rl8-zx-52y" userLabel="googleButton">
                                                                 <rect key="frame" x="0.0" y="56" width="260" height="40"/>
                                                                 <constraints>
                                                                     <constraint firstAttribute="height" constant="40" id="H3j-Sw-VD6"/>
                                                                 </constraints>
                                                                 <state key="normal" title="Button"/>
-                                                                <buttonConfiguration key="configuration" style="filled" title="Sign In with Google" cornerStyle="capsule">
-                                                                    <color key="baseBackgroundColor" red="0.8974609375" green="0.755859375" blue="0.4377441406" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
+                                                                <buttonConfiguration key="configuration" style="filled" image="google_logo" imagePlacement="leading" title="Sign In with Google" imagePadding="-3" cornerStyle="capsule">
+                                                                    <preferredSymbolConfiguration key="preferredSymbolConfigurationForImage"/>
+                                                                    <directionalEdgeInsets key="contentInsets" top="0.0" leading="26" bottom="0.0" trailing="0.0"/>
+                                                                    <color key="baseForegroundColor" systemColor="labelColor"/>
+                                                                    <color key="baseBackgroundColor" white="0.0" alpha="0.0" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                                                 </buttonConfiguration>
                                                                 <connections>
                                                                     <action selector="googleSignInTapped:" destination="fsq-Xf-QK8" eventType="touchUpInside" id="ibi-HX-EwY"/>
@@ -411,6 +416,7 @@
                         </constraints>
                     </view>
                     <connections>
+                        <outlet property="googleButton" destination="Rl8-zx-52y" id="TcW-6i-ohZ"/>
                         <outlet property="scrollView" destination="Uwr-sZ-bip" id="g6F-dM-nlJ"/>
                         <outletCollection property="textFields" destination="Syy-Bo-YK3" collectionClass="NSMutableArray" id="GBU-Gk-sBC"/>
                         <outletCollection property="textFields" destination="I1B-aN-SBj" collectionClass="NSMutableArray" id="4N4-Ru-cu5"/>
@@ -593,7 +599,7 @@
             <objects>
                 <viewController id="tZm-bJ-91C" customClass="SetPIN_ViewController" customModule="AksharApp" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="dEH-Kj-j6g">
-                        <rect key="frame" x="0.0" y="0.0" width="580" height="640"/>
+                        <rect key="frame" x="0.0" y="0.0" width="580" height="650"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <stackView opaque="NO" contentMode="scaleToFill" spacing="45" translatesAutoresizingMaskIntoConstraints="NO" id="zs2-2e-cRx">
@@ -1536,7 +1542,7 @@
                                         <state key="normal" title="Button"/>
                                         <buttonConfiguration key="configuration" style="filled" title="Progress Statistics" cornerStyle="capsule">
                                             <color key="baseForegroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
-                                            <color key="baseBackgroundColor" systemColor="systemBlueColor"/>
+                                            <color key="baseBackgroundColor" systemColor="tintColor"/>
                                         </buttonConfiguration>
                                         <connections>
                                             <action selector="goToAnalyticsTapped:" destination="gCx-7T-NPg" eventType="touchUpInside" id="q0R-tH-81z"/>
@@ -2751,16 +2757,18 @@
         </scene>
     </scenes>
     <inferredMetricsTieBreakers>
-        <segue reference="4u3-w3-loA"/>
+        <segue reference="hrh-Lq-S00"/>
     </inferredMetricsTieBreakers>
     <resources>
         <image name="JPEG image" width="205" height="148"/>
+        <image name="apple.logo" catalog="system" width="105" height="128"/>
         <image name="backgroundImage" width="424" height="983"/>
         <image name="boardingText" width="389" height="110"/>
         <image name="checkmark" catalog="system" width="128" height="114"/>
         <image name="chevron.right" catalog="system" width="97" height="128"/>
         <image name="continue_bg" width="1280" height="853"/>
         <image name="delete.left" catalog="system" width="128" height="102"/>
+        <image name="google_logo" width="50" height="50"/>
         <image name="house.fill" catalog="system" width="128" height="104"/>
         <image name="image 141" width="97" height="96"/>
         <image name="magnifyingglass" catalog="system" width="128" height="117"/>
@@ -2776,25 +2784,22 @@
             <color white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
         </systemColor>
         <systemColor name="opaqueSeparatorColor">
-            <color red="0.77647058823529413" green="0.77647058823529413" blue="0.78431372549019607" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+            <color red="0.77647058820000003" green="0.77647058820000003" blue="0.7843137255" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </systemColor>
         <systemColor name="secondaryLabelColor">
-            <color red="0.23529411764705882" green="0.23529411764705882" blue="0.2627450980392157" alpha="0.59999999999999998" colorSpace="custom" customColorSpace="sRGB"/>
+            <color red="0.23529411759999999" green="0.23529411759999999" blue="0.26274509800000001" alpha="0.59999999999999998" colorSpace="custom" customColorSpace="sRGB"/>
         </systemColor>
         <systemColor name="systemBackgroundColor">
             <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
         </systemColor>
-        <systemColor name="systemBlueColor">
-            <color red="0.0" green="0.53333333333333333" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-        </systemColor>
         <systemColor name="systemRedColor">
-            <color red="1" green="0.2196078431372549" blue="0.23529411764705882" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+            <color red="1" green="0.21960784310000001" blue="0.23529411759999999" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </systemColor>
         <systemColor name="tertiarySystemBackgroundColor">
             <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
         </systemColor>
         <systemColor name="tintColor">
-            <color red="0.0" green="0.53333333333333333" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+            <color red="0.0" green="0.53333333329999999" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </systemColor>
     </resources>
 </document>

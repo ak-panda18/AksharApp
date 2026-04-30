@@ -47,6 +47,9 @@ final class AppDependencyContainer {
     // MARK: - Profile
     let profileStore: ProfileStore
 
+    // MARK: - Sync
+    let syncService: FirestoreSyncService
+
     // MARK: - Init
     init() {
         coreDataStack    = CoreDataStack()
@@ -87,6 +90,22 @@ final class AppDependencyContainer {
         speechManager            = SpeechManager()
         speechRecognitionManager = SpeechRecognitionManager()
         gameTimerManager         = GameTimerManager(seconds: 30)
+
+        // Sync service wires together all stores that need cross-device persistence.
+        syncService = FirestoreSyncService(
+            analyticsStore:           analyticsStore,
+            readingProgressStore:     readingProgressStore,
+            writingProgressStore:     writingProgressStore,
+            checkpointHistoryManager: checkpointHistoryManager,
+            childManager:             childManager
+        )
+
+        // Wire the sync service back into the stores so they can push
+        // changes to Firestore immediately after writing to Core Data.
+        analyticsStore.syncService       = syncService
+        readingProgressStore.syncService = syncService
+        writingProgressStore.syncService = syncService
+        childManager.syncService         = syncService
     }
 
     // MARK: - Injection

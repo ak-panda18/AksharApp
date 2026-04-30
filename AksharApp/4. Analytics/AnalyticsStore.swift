@@ -9,12 +9,16 @@ final class AnalyticsStore {
     private let coreData: CoreDataStack
     private let childManager: ChildManager
 
+    // Injected after both objects are created in AppDependencyContainer.
+    weak var syncService: FirestoreSyncService?
+
     init(coreDataStack: CoreDataStack, childManager: ChildManager) {
         self.coreData     = coreDataStack
         self.childManager = childManager
     }
 
     // MARK: - Migration
+
     func migrateJSONToCoreData() {
         let legacyURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("analytics.json")
@@ -23,6 +27,8 @@ final class AnalyticsStore {
               let legacy = try? JSONDecoder().decode(AnalyticsData.self, from: data)
         else { return }
 
+        // Migration writes are bulk one-off inserts — run them on the main
+        // context so the deferred save timer batches them all in one shot.
         legacy.writingSessions.forEach        { appendWritingSession($0) }
         legacy.phonicsSessions.forEach        { appendPhonicsSession($0) }
         legacy.readingSessions.forEach        { appendReadingSession($0) }
@@ -33,15 +39,25 @@ final class AnalyticsStore {
     }
 
     // MARK: - Writing Sessions
-    func appendWritingSession(_ session: WritingSessionData) {
-        let entity = WritingSessionEntity(context: coreData.context)
-        entity.id               = session.id
-        entity.date             = session.date
-        entity.lettersAccuracy  = Int64(session.lettersAccuracy)
-        entity.wordsAccuracy    = Int64(session.wordsAccuracy)
-        entity.numbersAccuracy  = Int64(session.numbersAccuracy)
-        entity.child            = childManager.currentChild
-        coreData.deferredSave()
+
+    /// Appends a writing session on a background context so the main thread
+    /// is never blocked by the Core Data write + disk flush.
+    func appendWritingSession(_ session: WritingSessionData, skipSync: Bool = false) {
+        let childObjectID = childManager.currentChild.objectID
+        let sync = syncService
+
+        coreData.performBackgroundWrite { ctx in
+            let entity = WritingSessionEntity(context: ctx)
+            entity.id              = session.id
+            entity.date            = session.date
+            entity.lettersAccuracy = Int64(session.lettersAccuracy)
+            entity.wordsAccuracy   = Int64(session.wordsAccuracy)
+            entity.numbersAccuracy = Int64(session.numbersAccuracy)
+            entity.child = try? ctx.existingObject(with: childObjectID) as? ChildEntity
+            if !skipSync {
+                DispatchQueue.main.async { sync?.pushWritingSession(session) }
+            }
+        }
     }
 
     func fetchWritingSessions() -> [WritingSessionData] {
@@ -74,17 +90,26 @@ final class AnalyticsStore {
     }
 
     // MARK: - Phonics Sessions
-    func appendPhonicsSession(_ session: PhonicsSessionData) {
-        let entity = PhonicsSessionEntity(context: coreData.context)
-        entity.id            = session.id
-        entity.date          = session.date
-        entity.exerciseType  = session.exerciseType
-        entity.correctCount  = Int64(session.correctCount)
-        entity.totalAttempts = Int64(session.totalAttempts)
-        entity.startTime     = session.startTime
-        entity.endTime       = session.endTime
-        entity.child         = childManager.currentChild
-        coreData.deferredSave()
+
+    /// Appends a phonics session on a background context.
+    func appendPhonicsSession(_ session: PhonicsSessionData, skipSync: Bool = false) {
+        let childObjectID = childManager.currentChild.objectID
+        let sync = syncService
+
+        coreData.performBackgroundWrite { ctx in
+            let entity = PhonicsSessionEntity(context: ctx)
+            entity.id            = session.id
+            entity.date          = session.date
+            entity.exerciseType  = session.exerciseType
+            entity.correctCount  = Int64(session.correctCount)
+            entity.totalAttempts = Int64(session.totalAttempts)
+            entity.startTime     = session.startTime
+            entity.endTime       = session.endTime
+            entity.child         = try? ctx.existingObject(with: childObjectID) as? ChildEntity
+            if !skipSync {
+                DispatchQueue.main.async { sync?.pushPhonicsSession(session) }
+            }
+        }
     }
 
     func fetchPhonicsSessions() -> [PhonicsSessionData] {
@@ -117,25 +142,31 @@ final class AnalyticsStore {
     }
 
     // MARK: - Reading Sessions
-    func appendReadingSession(_ session: ReadingSessionData) {
-        let context = coreData.context
 
-        let entity = ReadingSessionEntity(context: context)
-        entity.id            = session.id
-        entity.startTime     = session.startTime
-        entity.endTime       = session.endTime
-        entity.levelUnlocked = Int64(session.levelUnlocked)
-        entity.totalDuration = session.totalDuration
-        entity.child         = childManager.currentChild
+    func appendReadingSession(_ session: ReadingSessionData, skipSync: Bool = false) {
+        let childObjectID = childManager.currentChild.objectID
+        let storyId       = session.storyId
+        let sync = syncService
 
-        let storyReq: NSFetchRequest<StoryEntity> = StoryEntity.fetchRequest()
-        storyReq.predicate  = NSPredicate(format: "storyId == %@", session.storyId)
-        storyReq.fetchLimit = 1
-        if let story = try? context.fetch(storyReq).first {
-            entity.story = story
+        coreData.performBackgroundWrite { ctx in
+            let entity = ReadingSessionEntity(context: ctx)
+            entity.id            = session.id
+            entity.startTime     = session.startTime
+            entity.endTime       = session.endTime
+            entity.levelUnlocked = Int64(session.levelUnlocked)
+            entity.totalDuration = session.totalDuration
+            entity.child         = try? ctx.existingObject(with: childObjectID) as? ChildEntity
+
+            let storyReq: NSFetchRequest<StoryEntity> = StoryEntity.fetchRequest()
+            storyReq.predicate  = NSPredicate(format: "storyId == %@", storyId)
+            storyReq.fetchLimit = 1
+            if let story = try? ctx.fetch(storyReq).first {
+                entity.story = story
+            }
+            if !skipSync {
+                DispatchQueue.main.async { sync?.pushReadingSession(session) }
+            }
         }
-
-        coreData.deferredSave()
     }
 
     func fetchReadingSessions() -> [ReadingSessionData] {
@@ -168,6 +199,9 @@ final class AnalyticsStore {
     }
 
     func updateReadingSessionEnd(sessionId: UUID, endTime: Date, additionalTime: TimeInterval = 0) {
+        // This is a targeted update that needs an immediate save (not deferred),
+        // because the checkpoint flow depends on the updated value being persisted
+        // before the next read. Keep it on the main context for simplicity.
         let request: NSFetchRequest<ReadingSessionEntity> = ReadingSessionEntity.fetchRequest()
         request.predicate  = NSPredicate(format: "id == %@", sessionId as CVarArg)
         request.fetchLimit = 1
@@ -183,15 +217,23 @@ final class AnalyticsStore {
     }
 
     // MARK: - Checkpoint Results
-    func appendCheckpointResult(_ result: ReadingCheckpointResultData) {
-        let entity = CheckpointResultEntity(context: coreData.context)
-        entity.id             = result.id
-        entity.date           = result.date
-        entity.storyId        = result.storyId
-        entity.accuracy       = result.accuracy
-        entity.checkpointText = result.checkpointText
-        entity.child          = childManager.currentChild
-        coreData.deferredSave()
+
+    func appendCheckpointResult(_ result: ReadingCheckpointResultData, skipSync: Bool = false) {
+        let childObjectID = childManager.currentChild.objectID
+        let sync = syncService
+
+        coreData.performBackgroundWrite { ctx in
+            let entity = CheckpointResultEntity(context: ctx)
+            entity.id             = result.id
+            entity.date           = result.date
+            entity.storyId        = result.storyId
+            entity.accuracy       = result.accuracy
+            entity.checkpointText = result.checkpointText
+            entity.child          = try? ctx.existingObject(with: childObjectID) as? ChildEntity
+            if !skipSync {
+                DispatchQueue.main.async { sync?.pushCheckpointResult(result) }
+            }
+        }
     }
 
     func fetchCheckpointResults() -> [ReadingCheckpointResultData] {
@@ -208,6 +250,7 @@ final class AnalyticsStore {
     }
 
     // MARK: - Private Helpers
+
     private func childPredicate() -> NSPredicate {
         NSPredicate(format: "child == %@", childManager.currentChild)
     }

@@ -49,4 +49,7 @@ final class StoryRepository {
         checkpointSets.first(where: { $0.id == storyId })?
                       .content.first(where: { $0.pageNumber == pageNumber })
     }
+    func getTotalCheckpoints(for story: Story) -> Int {
+        return story.content.filter { $0.checkAfter }.count
+    }
 }

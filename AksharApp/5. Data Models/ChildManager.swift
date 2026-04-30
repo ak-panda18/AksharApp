@@ -11,6 +11,9 @@ final class ChildManager {
     private let activeKey = "activeChildId"
     private(set) var currentChild: ChildEntity
 
+    // Injected after both objects are created in AppDependencyContainer.
+    weak var syncService: FirestoreSyncService?
+
     // MARK: - Init
     init(coreDataStack: CoreDataStack) {
         self.coreData = coreDataStack
@@ -55,6 +58,14 @@ final class ChildManager {
     // MARK: - Profile data save
     func saveProfileData() {
         coreData.saveContext()
+        let child = currentChild
+        syncService?.pushProfile(
+            firstName: child.firstName ?? "",
+            lastName:  child.lastName  ?? "",
+            age:       Int(child.age),
+            gender:    child.gender    ?? "",
+            name:      child.name      ?? ""
+        )
     }
 
     // MARK: - Account deletion

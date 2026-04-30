@@ -55,7 +55,10 @@ extension AnalyticsStore {
 
     // MARK: Checkpoint Attempt
     func mapAttemptToStruct(_ entity: CheckpointAttemptEntity) -> CheckpointAttempt {
-        let words = (entity.words as? Set<SpokenWordEntity>)?.compactMap { $0.word } ?? []
+        // Words are sorted by their stored order so spoken-word sequence is preserved.
+        let words = ((entity.words as? Set<SpokenWordEntity>) ?? [])
+            .sorted { $0.order < $1.order }
+            .compactMap { $0.word }
         return CheckpointAttempt(
             storyTitle: entity.storyTitle ?? "",
             checkpointNumber: Int(entity.checkpointNumber),
@@ -69,50 +72,67 @@ extension AnalyticsStore {
 // MARK: - Analytics Aggregation Layer
 struct AnalyticsAggregator {
 
-    static func periodAverage(
-            allSessions: [WritingSessionData],
-            keyPath: KeyPath<WritingSessionData, Int>,
-            startDate: Date,
-            endDate: Date
-    ) -> Int? {
-        let sorted = allSessions
+    // MARK: - Shared private helper
+    //
+    // Both `periodAverage` and `writingGraphData` previously contained an
+    // identical copy of this running-average reversal algorithm.
+    // It now lives here exactly once.
+    //
+    // Background: Core Data stores a *cumulative running average* per session
+    // rather than the raw session score. This function reverses that to recover
+    // the individual session score for each data point so graphs and period
+    // averages are computed from real per-session values.
+    private static func reconstructRealScores(
+        from sessions: [WritingSessionData],
+        keyPath: KeyPath<WritingSessionData, Int>
+    ) -> [(date: Date, score: Int)] {
+        let sorted = sessions
             .filter { $0[keyPath: keyPath] > 0 }
             .sorted { $0.date < $1.date }
-        
-        guard !sorted.isEmpty else { return nil }
-        
-        var realScores: [(date: Date, score: Int)] = []
+        guard !sorted.isEmpty else { return [] }
+
+        var result: [(date: Date, score: Int)] = []
         var runningSum = 0
-        
+
         for (index, session) in sorted.enumerated() {
             let avg = session[keyPath: keyPath]
             if index == 0 {
-                realScores.append((session.date, avg))
+                result.append((session.date, avg))
                 runningSum += avg
             } else {
                 let prevTotalTruncated = (runningSum / index) * index
-                let sessionScore = (avg * (index + 1)) - prevTotalTruncated
-                let clampedScore = min(max(sessionScore, 0), 100)
-                realScores.append((session.date, clampedScore))
+                let sessionScore = min(max((avg * (index + 1)) - prevTotalTruncated, 0), 100)
+                result.append((session.date, sessionScore))
                 runningSum += avg
             }
         }
-        
+        return result
+    }
+
+    // MARK: - Period Average
+    static func periodAverage(
+        allSessions: [WritingSessionData],
+        keyPath: KeyPath<WritingSessionData, Int>,
+        startDate: Date,
+        endDate: Date
+    ) -> Int? {
+        let realScores = reconstructRealScores(from: allSessions, keyPath: keyPath)
+        guard !realScores.isEmpty else { return nil }
+
         let periodScores = realScores.filter { $0.date >= startDate && $0.date < endDate }
         guard !periodScores.isEmpty else { return nil }
-        
+
         let total = periodScores.reduce(0) { $0 + $1.score }
         return total / periodScores.count
     }
-    
+
     // MARK: - Writing
+
     static func latestScore(
         from sessions: [WritingSessionData],
         contentType: WritingContentType
     ) -> Int? {
-
         let filtered: [WritingSessionData]
-
         switch contentType {
         case .letters: filtered = sessions.filter { $0.lettersAccuracy > 0 }
         case .words:   filtered = sessions.filter { $0.wordsAccuracy   > 0 }
@@ -140,29 +160,8 @@ struct AnalyticsAggregator {
         keyPath: KeyPath<WritingSessionData, Int>,
         isWeekly: Bool
     ) -> [AccuracyPoint] {
-
-        let sorted = allSessions
-            .filter { $0[keyPath: keyPath] > 0 }
-            .sorted { $0.date < $1.date }
-
-        guard !sorted.isEmpty else { return [] }
-
-        var realScores: [(date: Date, score: Int)] = []
-        var runningSum = 0
-
-        for (index, session) in sorted.enumerated() {
-            let avg = session[keyPath: keyPath]
-            if index == 0 {
-                realScores.append((session.date, avg))
-                runningSum += avg
-            } else {
-                let prevTotalTruncated = (runningSum / index) * index
-                let sessionScore = (avg * (index + 1)) - prevTotalTruncated
-                let clampedScore = min(max(sessionScore, 0), 100)
-                realScores.append((session.date, clampedScore))
-                runningSum += avg
-            }
-        }
+        let realScores = reconstructRealScores(from: allSessions, keyPath: keyPath)
+        guard !realScores.isEmpty else { return [] }
 
         let calendar = Calendar.current
         let now = Date()
