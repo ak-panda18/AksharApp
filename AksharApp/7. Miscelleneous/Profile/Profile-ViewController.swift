@@ -534,15 +534,76 @@ class Profile_ViewController: UIViewController,
         profileImage.superview?.viewWithTag(9002)?.isHidden = !visible
     }
 
+//    @objc private func profileImageTapped() {
+//        let alert = UIAlertController(title: "Profile Photo", message: nil, preferredStyle: .actionSheet)
+//        alert.addAction(UIAlertAction(title: "Take Photo",          style: .default) { [weak self] _ in self?.openPicker(.camera) })
+//        alert.addAction(UIAlertAction(title: "Choose from Library", style: .default) { [weak self] _ in self?.openPicker(.photoLibrary) })
+//        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+//        if let pop = alert.popoverPresentationController {
+//            pop.sourceView = profileImage
+//            pop.sourceRect = profileImage.bounds
+//        }
+//        present(alert, animated: true)
+//    }
     @objc private func profileImageTapped() {
-        let alert = UIAlertController(title: "Profile Photo", message: nil, preferredStyle: .actionSheet)
-        alert.addAction(UIAlertAction(title: "Take Photo",          style: .default) { [weak self] _ in self?.openPicker(.camera) })
-        alert.addAction(UIAlertAction(title: "Choose from Library", style: .default) { [weak self] _ in self?.openPicker(.photoLibrary) })
+
+        let alert = UIAlertController(
+            title: "Profile Photo",
+            message: nil,
+            preferredStyle: .actionSheet
+        )
+
+        alert.addAction(UIAlertAction(
+            title: "Take Photo",
+            style: .default
+        ) { [weak self] _ in
+            self?.openPicker(.camera)
+        })
+
+        alert.addAction(UIAlertAction(
+            title: "Choose from Library",
+            style: .default
+        ) { [weak self] _ in
+            self?.openPicker(.photoLibrary)
+        })
+
+        // Show remove option only if photo exists
+        if profileImage.image != nil {
+
+            alert.addAction(UIAlertAction(
+                title: "Remove Photo",
+                style: .destructive
+            ) { [weak self] _ in
+
+                guard let self else { return }
+
+                let child = childManager.currentChild
+                child.profileImageData = nil
+
+                childManager.saveProfileData()
+
+                // Restore default grey profile state immediately
+                profileImage.image = nil
+                profileImage.backgroundColor = UIColor.systemGray5
+
+                addCameraOverlay()
+                showPencilButton(false)
+
+                // Update other screens immediately
+                NotificationCenter.default.post(
+                    name: .profileImageDidChange,
+                    object: nil
+                )
+            })
+        }
+
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+
         if let pop = alert.popoverPresentationController {
             pop.sourceView = profileImage
             pop.sourceRect = profileImage.bounds
         }
+
         present(alert, animated: true)
     }
 

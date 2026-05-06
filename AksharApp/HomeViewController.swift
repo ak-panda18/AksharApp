@@ -77,17 +77,72 @@ class HomeViewController: UIViewController {
     }
 
     // MARK: - Profile button image
+//    @objc private func profileImageChanged(_ notification: Notification) {
+//        guard let image = notification.object as? UIImage else { return }
+//        analytics.setImage(image, for: .normal)
+//        analytics.imageView?.contentMode = .scaleAspectFill
+//    }
+//
+//    private func updateProfileButtonImage() {
+//        if let imageData = childManager?.currentChild.profileImageData,
+//           let image = UIImage(data: imageData) {
+//            analytics.setImage(image, for: .normal)
+//            analytics.imageView?.contentMode = .scaleAspectFill
+//        }
+//    }
     @objc private func profileImageChanged(_ notification: Notification) {
-        guard let image = notification.object as? UIImage else { return }
-        analytics.setImage(image, for: .normal)
-        analytics.imageView?.contentMode = .scaleAspectFill
+        updateProfileButtonImage()
     }
 
     private func updateProfileButtonImage() {
+
+        analytics.layer.cornerRadius = analytics.frame.width / 2
+        analytics.clipsToBounds = true
+
+        // VERY IMPORTANT
+        analytics.imageView?.layer.cornerRadius = analytics.frame.width / 2
+        analytics.imageView?.clipsToBounds = true
+
+//        if let imageData = childManager?.currentChild.profileImageData,
+//           let image = UIImage(data: imageData) {
+//
+//            analytics.setBackgroundImage(nil, for: .normal)
+//
+//            analytics.setImage(image.withRenderingMode(.alwaysOriginal), for: .normal)
+//
+//            analytics.imageView?.contentMode = .scaleAspectFit
+//
+//        }
         if let imageData = childManager?.currentChild.profileImageData,
            let image = UIImage(data: imageData) {
-            analytics.setImage(image, for: .normal)
+
+            analytics.setBackgroundImage(nil, for: .normal)
+
+            analytics.setImage(image.withRenderingMode(.alwaysOriginal), for: .normal)
+
+            analytics.contentHorizontalAlignment = .center
+            analytics.contentVerticalAlignment = .center
+
+            analytics.imageEdgeInsets = .zero
+            analytics.contentEdgeInsets = .zero
+
             analytics.imageView?.contentMode = .scaleAspectFill
+            analytics.clipsToBounds = true
+        } else {
+
+            // REMOVE EVERYTHING
+            analytics.setImage(nil, for: .normal)
+            analytics.setBackgroundImage(nil, for: .normal)
+
+            // THIS IS THE REAL FIX
+            // restore storyboard image manually
+            let defaultImage = UIImage(systemName: "person.crop.circle.fill")
+
+            analytics.setImage(defaultImage, for: .normal)
+
+            analytics.tintColor = UIColor.systemBrown
+
+            analytics.imageView?.contentMode = .scaleAspectFit
         }
     }
 
