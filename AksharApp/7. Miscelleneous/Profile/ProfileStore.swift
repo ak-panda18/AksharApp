@@ -1,18 +1,74 @@
 import Foundation
 import UserNotifications
+import FirebaseFirestore
 import os.log
 
 private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "AksharApp", category: "ProfileStore")
 
 // MARK: - ProfileStore
+// Reminder preferences and last-open date are persisted to Firestore so they
+// sync across devices automatically. UserDefaults is kept as a fast local cache
+// so reads are instant (no async wait on every screen load); Firestore is the
+// source of truth and overwrites the cache on fetch.
+//
+// Firestore document path:  users/{uid}/profile/settings
+// Fields:
+//   reminderEnabled : Bool
+//   reminderDays    : [Bool]   (7 elements, Mon–Sun)
+//   reminderHour    : Int
+//   reminderMinute  : Int
+//   lastOpenDate    : Timestamp
+
 final class ProfileStore {
 
-    // MARK: - UserDefaults Keys
+    // MARK: - Firestore ref helper
+    private func settingsRef(uid: String) -> DocumentReference {
+        Firestore.firestore()
+            .collection("users").document(uid)
+            .collection("profile").document("settings")
+    }
+
+    // MARK: - Local cache keys (uid-scoped, never "default")
     private func enabledKey(_ uid: String)  -> String { "reminder_enabled_\(uid)" }
     private func daysKey(_ uid: String)     -> String { "reminder_days_\(uid)" }
     private func hourKey(_ uid: String)     -> String { "reminder_hour_\(uid)" }
     private func minuteKey(_ uid: String)   -> String { "reminder_minute_\(uid)" }
     private func lastOpenKey(_ uid: String) -> String { "last_open_date_\(uid)" }
+
+    // MARK: - Fetch from Firestore (call once on profile screen load)
+    /// Pulls the latest settings from Firestore and updates the local cache.
+    /// Completion is called on the main thread with the refreshed values so
+    /// the UI can update without a second round-trip.
+    func fetchSettings(uid: String, completion: ((Bool, [Bool], Int, Int) -> Void)? = nil) {
+        settingsRef(uid: uid).getDocument { [weak self] snapshot, error in
+            guard let self, let data = snapshot?.data(), error == nil else {
+                if let error { logger.error("ProfileStore: fetch failed – \(error)") }
+                return
+            }
+            // Cache locally
+            let enabled = data["reminderEnabled"] as? Bool ?? true
+            let days    = data["reminderDays"]    as? [Bool] ?? Array(repeating: true, count: 7)
+            let hour    = data["reminderHour"]    as? Int    ?? 17
+            let minute  = data["reminderMinute"]  as? Int    ?? 0
+
+            UserDefaults.standard.set(enabled, forKey: self.enabledKey(uid))
+            if let encoded = try? JSONEncoder().encode(days) {
+                UserDefaults.standard.set(encoded, forKey: self.daysKey(uid))
+            }
+            UserDefaults.standard.set(hour,   forKey: self.hourKey(uid))
+            UserDefaults.standard.set(minute, forKey: self.minuteKey(uid))
+
+            if let ts = data["lastOpenDate"] as? Timestamp {
+                if let encoded = try? JSONEncoder().encode(ts.dateValue()) {
+                    UserDefaults.standard.set(encoded, forKey: self.lastOpenKey(uid))
+                }
+            }
+
+            DispatchQueue.main.async {
+                completion?(enabled, days, hour, minute)
+            }
+        }
+    }
 
     // MARK: - Reminder Enabled
     func isReminderEnabled(uid: String) -> Bool {
@@ -22,6 +78,9 @@ final class ProfileStore {
 
     func setReminderEnabled(_ enabled: Bool, uid: String) {
         UserDefaults.standard.set(enabled, forKey: enabledKey(uid))
+        settingsRef(uid: uid).setData(["reminderEnabled": enabled], merge: true) { error in
+            if let error { logger.error("ProfileStore: setReminderEnabled failed – \(error)") }
+        }
     }
 
     // MARK: - Reminder Days
@@ -36,6 +95,9 @@ final class ProfileStore {
     func setReminderDays(_ days: [Bool], uid: String) {
         if let data = try? JSONEncoder().encode(days) {
             UserDefaults.standard.set(data, forKey: daysKey(uid))
+        }
+        settingsRef(uid: uid).setData(["reminderDays": days], merge: true) { error in
+            if let error { logger.error("ProfileStore: setReminderDays failed – \(error)") }
         }
     }
 
@@ -52,6 +114,12 @@ final class ProfileStore {
     func setReminderTime(hour: Int, minute: Int, uid: String) {
         UserDefaults.standard.set(hour,   forKey: hourKey(uid))
         UserDefaults.standard.set(minute, forKey: minuteKey(uid))
+        settingsRef(uid: uid).setData(
+            ["reminderHour": hour, "reminderMinute": minute],
+            merge: true
+        ) { error in
+            if let error { logger.error("ProfileStore: setReminderTime failed – \(error)") }
+        }
     }
 
     // MARK: - Last Open Date
@@ -59,6 +127,12 @@ final class ProfileStore {
         let today = Calendar.current.startOfDay(for: Date())
         if let data = try? JSONEncoder().encode(today) {
             UserDefaults.standard.set(data, forKey: lastOpenKey(uid))
+        }
+        settingsRef(uid: uid).setData(
+            ["lastOpenDate": Timestamp(date: today)],
+            merge: true
+        ) { error in
+            if let error { logger.error("ProfileStore: recordAppOpen failed – \(error)") }
         }
     }
 
@@ -90,9 +164,9 @@ final class ProfileStore {
         center.removePendingNotificationRequests(withIdentifiers: allIDs())
         guard isReminderEnabled(uid: uid) else { return }
 
-        let days      = reminderDays(uid: uid)
-        let hour      = reminderHour(uid: uid)
-        let minute    = reminderMinute(uid: uid)
+        let days       = reminderDays(uid: uid)
+        let hour       = reminderHour(uid: uid)
+        let minute     = reminderMinute(uid: uid)
         let weekdayMap = [2, 3, 4, 5, 6, 7, 1]
 
         for (i, isOn) in days.enumerated() {

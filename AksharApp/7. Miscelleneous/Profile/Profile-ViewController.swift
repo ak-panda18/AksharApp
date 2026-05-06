@@ -1,6 +1,6 @@
-
 import UIKit
 import FirebaseAuth
+import FirebaseFirestore
 import UserNotifications
 import CoreData
 import os.log
@@ -74,10 +74,16 @@ class Profile_ViewController: UIViewController,
             .compactMap { $0 }
     }
 
+    // FIX 1: childUID is now guaranteed to be the Firebase UID.
+    // The old fallback to CoreData UUID or the literal "default" caused all profiles
+    // to share the same UserDefaults keys whenever uid or id was nil.
     private var childUID: String {
-        Auth.auth().currentUser?.uid
-            ?? childManager.currentChild.id?.uuidString
-            ?? "default"
+        guard let uid = Auth.auth().currentUser?.uid else {
+            assertionFailure("childUID accessed before Firebase auth — this should never happen")
+            // Safe fallback: prefix ensures it never collides with a real Firebase UID
+            return "local_\(childManager.currentChild.id?.uuidString ?? "unknown")"
+        }
+        return uid
     }
 
     // MARK: - Lifecycle
@@ -96,8 +102,41 @@ class Profile_ViewController: UIViewController,
         setupProfileImageTap()
         loadProfileData()
         updateStreakCard()
+        fetchStreakFromFirestore()       // merges remote streak dates in the background
+        fetchProfileInfoFromFirestore()  // syncs name/gender/age/PIN from Firestore
         loadReminderState()
         checkPINStatus()
+
+        // Pull latest reminder prefs from Firestore and refresh UI once they arrive.
+        profileStore.fetchSettings(uid: childUID) { [weak self] enabled, days, _, _ in
+            guard let self else { return }
+            self.reminderSwitch.isOn = enabled
+            self.setDayButtonsInteractive(enabled)
+            for (i, btn) in self.dayButtons.enumerated() {
+                btn.backgroundColor = days[i] ? self.yellowOn : self.whiteOff
+            }
+        }
+
+        // FIX 2: Recalculate the streak whenever the app returns from the background.
+        // Without this, viewDidLoad only fires once and the streak never updates
+        // after midnight or after the app is backgrounded.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+    }
+
+    // FIX 2 (continued): Also recalculate each time this screen becomes visible,
+    // e.g. returning from a sub-screen within the same session.
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        updateStreakCard()
+    }
+
+    @objc private func appDidBecomeActive() {
+        updateStreakCard()
     }
 
     override func viewDidLayoutSubviews() {
@@ -105,6 +144,17 @@ class Profile_ViewController: UIViewController,
     }
 
     // MARK: - Profile Data
+
+    // Firestore path: users/{uid}/profile/info
+    // Fields: firstName, lastName, gender, age, pin
+    private func infoRef(uid: String) -> DocumentReference {
+        Firestore.firestore()
+            .collection("users").document(uid)
+            .collection("profile").document("info")
+    }
+
+    /// Renders whatever is currently in CoreData. Called immediately so the
+    /// screen is never blank while the Firestore fetch is in flight.
     private func loadProfileData() {
         let child        = childManager.currentChild
         let firebaseName = Auth.auth().currentUser?.displayName
@@ -129,19 +179,91 @@ class Profile_ViewController: UIViewController,
         }
 
         let displayName = resolvedFirstName.nilIfEmpty ?? firebaseName ?? "Profile"
-
         logger.debug("ProfileVC: loading profile for child id=\(child.id?.uuidString ?? "nil") name=\(child.name ?? "nil")")
 
+        applyProfileUI(
+            firstName:   resolvedFirstName,
+            lastName:    resolvedLastName,
+            gender:      child.gender ?? "",
+            age:         child.age == 0 ? "" : String(child.age),
+            displayName: displayName
+        )
+    }
+
+    /// Pulls the authoritative profile info from Firestore and overwrites
+    /// CoreData + UI. This is what makes edits show up cross-device.
+    private func fetchProfileInfoFromFirestore() {
+        infoRef(uid: childUID).getDocument { [weak self] snapshot, error in
+            guard let self, let data = snapshot?.data(), error == nil else {
+                if let error { logger.error("ProfileVC: fetchProfileInfo failed – \(error)") }
+                return
+            }
+            let fn     = data["firstName"] as? String ?? ""
+            let ln     = data["lastName"]  as? String ?? ""
+            let gn     = data["gender"]    as? String ?? ""
+            let ageVal = data["age"]       as? Int    ?? 0
+            let pin    = data["pin"]       as? String
+
+            // Write back into CoreData so local reads stay in sync
+            let child       = self.childManager.currentChild
+            child.firstName = fn
+            child.lastName  = ln
+            child.gender    = gn
+            child.age       = Int16(ageVal)
+            if !fn.isEmpty { child.name = fn }
+            self.childManager.saveProfileData()
+
+            // Sync PIN into UserDefaults so SetPIN/VerifyPIN VCs work unchanged
+            if let pin {
+                UserDefaults.standard.set(pin, forKey: self.pinKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: self.pinKey)
+            }
+
+            DispatchQueue.main.async {
+                self.applyProfileUI(
+                    firstName:   fn,
+                    lastName:    ln,
+                    gender:      gn,
+                    age:         ageVal == 0 ? "" : String(ageVal),
+                    displayName: fn.nilIfEmpty ?? Auth.auth().currentUser?.displayName ?? "Profile"
+                )
+                self.checkPINStatus()
+            }
+        }
+    }
+
+    /// Writes profile info to Firestore. Call this whenever info changes.
+    func saveProfileInfoToFirestore(firstName fn: String, lastName ln: String,
+                                    age: Int16, gender gn: String) {
+        var payload: [String: Any] = [
+            "firstName": fn,
+            "lastName":  ln,
+            "gender":    gn,
+            "age":       Int(age)
+        ]
+        // Carry the PIN along so it isn't wiped on a partial update
+        if let pin = UserDefaults.standard.string(forKey: pinKey) {
+            payload["pin"] = pin
+        }
+        infoRef(uid: childUID).setData(payload, merge: true) { error in
+            if let error { logger.error("ProfileVC: saveProfileInfo failed – \(error)") }
+        }
+    }
+
+    private func applyProfileUI(firstName fn: String, lastName ln: String,
+                                 gender gn: String, age ag: String, displayName: String) {
         profileName.text = displayName
-        firstName.text   = resolvedFirstName
-        lastName.text    = resolvedLastName
-        gender.text      = child.gender ?? ""
-        age.text         = child.age == 0 ? "" : String(child.age)
+        firstName.text   = fn
+        lastName.text    = ln
+        gender.text      = gn
+        age.text         = ag
 
         profileImage.layer.cornerRadius  = profileImage.frame.width / 2
         profileImage.layer.masksToBounds = true
         profileImage.contentMode         = .scaleAspectFill
 
+        let child = childManager.currentChild
         if let data = child.profileImageData, let img = UIImage(data: data) {
             profileImage.image = img
             removeCameraOverlay()
@@ -156,17 +278,31 @@ class Profile_ViewController: UIViewController,
 
     // MARK: - Streak Card
     private func updateStreakCard() {
-        let child    = childManager.currentChild
-        let visitKey = "visitDates_\(child.id?.uuidString ?? "default")"
+        // FIX 1 + FIX 3: Use childUID (Firebase UID) as the key — not the nullable
+        // CoreData UUID. This prevents data leaking between profiles and ensures the
+        // same key is used on every device (since the Firebase UID is account-scoped).
+        let visitKey = "visitDates_\(childUID)"
         let today    = Calendar.current.startOfDay(for: Date())
-        var visits   = loadDates(forKey: visitKey)
+
+        var visits = loadDates(forKey: visitKey)
 
         if !visits.contains(today) {
             visits.append(today)
-            saveDates(visits, forKey: visitKey)
+            // Write only today's date to Firestore using arrayUnion — this atomically
+            // adds the date without overwriting dates written by other devices.
+            recordTodayInFirestore(today: today, visitKey: visitKey)
         }
 
-        var streak = 0, check = today
+        // Prune local cache only (Firestore pruning happens in fetchStreakFromFirestore).
+        let cutoff = Calendar.current.date(byAdding: .day, value: -90, to: today)!
+        visits = visits.filter { $0 >= cutoff }
+
+        // Save pruned list to local cache only — don't push full array to Firestore.
+        saveDatesToCache(visits, forKey: visitKey)
+
+        // Calculate consecutive-day streak working backwards from today.
+        var streak = 0
+        var check  = today
         while visits.contains(check) {
             streak += 1
             check   = Calendar.current.date(byAdding: .day, value: -1, to: check)!
@@ -187,20 +323,41 @@ class Profile_ViewController: UIViewController,
             let visited  = visits.contains(Calendar.current.startOfDay(for: day))
             let label    = view.subviews.first(where: { $0 is UILabel }) as? UILabel
 
-            if visited && !isFuture {
+            if isToday {
+                // Today: solid blue fill regardless of visited state
+                view.backgroundColor   = UIColor.systemBlue
+                view.layer.borderColor = UIColor.systemBlue.cgColor
+                label?.textColor       = .white
+            } else if visited && !isFuture {
+                // Past day visited: solid green fill
                 view.backgroundColor   = UIColor(red: 0.25, green: 0.80, blue: 0.35, alpha: 1.0)
                 view.layer.borderColor = UIColor.clear.cgColor
                 label?.textColor       = .white
-            } else if isToday {
-                view.backgroundColor   = yellowOn
-                view.layer.borderColor = UIColor(red: 200/255, green: 160/255, blue: 0, alpha: 1).cgColor
-                label?.textColor       = .black
+            } else if !isFuture {
+                // Past day missed: red outline, no fill
+                view.backgroundColor   = .white
+                view.layer.borderColor = UIColor.systemRed.cgColor
+                label?.textColor       = .systemRed
             } else {
+                // Future day: neutral grey outline
                 view.backgroundColor   = .white
                 view.layer.borderColor = UIColor.systemGray4.cgColor
                 label?.textColor       = .systemGray
             }
         }
+    }
+
+    // FIX 3: Streak dates are stored in Firestore so they sync across devices.
+    // UserDefaults is used as a fast local cache — the UI reads from cache instantly
+    // while a background Firestore fetch keeps it in sync.
+    //
+    // Firestore path:  users/{uid}/profile/streak
+    // Field:           visitDates : [Timestamp]
+
+    private func streakRef(uid: String) -> DocumentReference {
+        Firestore.firestore()
+            .collection("users").document(uid)
+            .collection("profile").document("streak")
     }
 
     private func loadDates(forKey key: String) -> [Date] {
@@ -210,9 +367,55 @@ class Profile_ViewController: UIViewController,
         return dates
     }
 
-    private func saveDates(_ dates: [Date], forKey key: String) {
+    /// Writes dates to UserDefaults cache only. Does NOT touch Firestore.
+    private func saveDatesToCache(_ dates: [Date], forKey key: String) {
         if let data = try? JSONEncoder().encode(dates) {
             UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+
+    /// Atomically adds a single date to Firestore using arrayUnion.
+    /// This means two devices writing different dates simultaneously will both
+    /// be preserved — neither overwrites the other.
+    private func recordTodayInFirestore(today: Date, visitKey: String) {
+        streakRef(uid: childUID).setData(
+            ["visitDates": FieldValue.arrayUnion([Timestamp(date: today)])],
+            merge: true
+        ) { error in
+            if let error {
+                logger.error("ProfileVC: recordTodayInFirestore failed – \(error)")
+            }
+        }
+    }
+
+    /// Legacy wrapper kept so fetchStreakFromFirestore can still write a pruned
+    /// full-array back after a fetch (the only place a full overwrite is correct).
+    private func saveDates(_ dates: [Date], forKey key: String) {
+        saveDatesToCache(dates, forKey: key)
+        let timestamps = dates.map { Timestamp(date: $0) }
+        streakRef(uid: childUID).setData(["visitDates": timestamps], merge: true) { error in
+            if let error {
+                logger.error("ProfileVC: saveDates Firestore write failed – \(error)")
+            }
+        }
+    }
+
+    /// Call once on first load to pull streak dates down from Firestore
+    /// and merge with anything already in the local cache.
+    private func fetchStreakFromFirestore() {
+        let key = "visitDates_\(childUID)"
+        streakRef(uid: childUID).getDocument { [weak self] snapshot, error in
+            guard let self, let data = snapshot?.data(), error == nil else { return }
+            let remote = (data["visitDates"] as? [Timestamp] ?? [])
+                .map { Calendar.current.startOfDay(for: $0.dateValue()) }
+            var merged = self.loadDates(forKey: key)
+            for d in remote where !merged.contains(d) { merged.append(d) }
+            let cutoff = Calendar.current.date(byAdding: .day, value: -90, to: Date())!
+            merged = merged.filter { $0 >= cutoff }
+            // Use saveDates (not UserDefaults directly) so the merged result
+            // is written back to Firestore and becomes visible on all other devices.
+            self.saveDates(merged, forKey: key)
+            DispatchQueue.main.async { self.updateStreakCard() }
         }
     }
 
@@ -256,7 +459,7 @@ class Profile_ViewController: UIViewController,
     @IBAction func setReminderTimeTapped(_ sender: UIButton) {
         let alert  = UIAlertController(title: "Reminder Time", message: "\n\n\n\n\n\n", preferredStyle: .alert)
         let picker = UIDatePicker()
-        picker.datePickerMode          = .time
+        picker.datePickerMode           = .time
         picker.preferredDatePickerStyle = .wheels
         picker.translatesAutoresizingMaskIntoConstraints = false
 
@@ -306,8 +509,8 @@ class Profile_ViewController: UIViewController,
 
         let config = UIImage.SymbolConfiguration(pointSize: 12, weight: .bold)
         pencilButton.setImage(UIImage(systemName: "pencil", withConfiguration: config), for: .normal)
-        pencilButton.tintColor        = UIColor(red: 0.38, green: 0.22, blue: 0.09, alpha: 1.0) // brown
-        pencilButton.backgroundColor  = UIColor(red: 1.0, green: 0.87, blue: 0.51, alpha: 1.0)  // yellow
+        pencilButton.tintColor        = UIColor(red: 0.38, green: 0.22, blue: 0.09, alpha: 1.0)
+        pencilButton.backgroundColor  = UIColor(red: 1.0, green: 0.87, blue: 0.51, alpha: 1.0)
         pencilButton.layer.cornerRadius  = size / 2
         pencilButton.layer.masksToBounds = false
         pencilButton.layer.shadowColor   = UIColor.black.cgColor
@@ -516,6 +719,12 @@ class Profile_ViewController: UIViewController,
             guard let self else { return }
             Auth.auth().sendPasswordReset(withEmail: email) { _ in }
             UserDefaults.standard.removeObject(forKey: self.pinKey)
+            // Clear PIN from Firestore so other devices see it removed too
+            self.infoRef(uid: self.childUID).setData(
+                ["pin": FieldValue.delete()], merge: true
+            ) { error in
+                if let error { logger.error("ProfileVC: forgotPIN Firestore clear failed – \(error)") }
+            }
             self.checkPINStatus()
             let confirm = UIAlertController(
                 title: "Email Sent",
@@ -527,6 +736,9 @@ class Profile_ViewController: UIViewController,
         present(alert, animated: true)
     }
 
+    // pinKey is still used for UserDefaults as a local cache.
+    // Firestore (users/{uid}/profile/info → "pin") is the cross-device source of truth.
+    // fetchProfileInfoFromFirestore() populates UserDefaults on every load.
     private var pinKey: String { "userPIN_\(childUID)" }
 
     private func checkPINStatus() {
@@ -599,10 +811,24 @@ class Profile_ViewController: UIViewController,
         self.age.text         = age == 0 ? "" : String(age)
         self.gender.text      = gender
         self.profileName.text = firstName.nilIfEmpty ?? self.profileName.text
+        // Persist cross-device
+        saveProfileInfoToFirestore(firstName: firstName, lastName: lastName, age: age, gender: gender)
     }
 
     func didSetPIN(_ pin: String) {
         checkPINStatus()
+        // Persist PIN to Firestore so it syncs to all devices
+        let child = childManager.currentChild
+        let fn    = child.firstName ?? ""
+        let ln    = child.lastName  ?? ""
+        let gn    = child.gender    ?? ""
+        let ag    = Int(child.age)
+        infoRef(uid: childUID).setData(
+            ["firstName": fn, "lastName": ln, "gender": gn, "age": ag, "pin": pin],
+            merge: true
+        ) { error in
+            if let error { logger.error("ProfileVC: didSetPIN Firestore write failed – \(error)") }
+        }
     }
 }
 
