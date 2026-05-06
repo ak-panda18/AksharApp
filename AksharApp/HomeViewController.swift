@@ -65,10 +65,18 @@ class HomeViewController: UIViewController {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(true, animated: false)
         updateDashboardState()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // Called here (not viewWillAppear / viewDidLayoutSubviews) because
+        // setImage() on a UIButton triggers a layout pass.  Calling it during
+        // viewDidLayoutSubviews creates an infinite loop that freezes the app.
         updateProfileButtonImage()
     }
 
     override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
         chevronButton.layer.borderWidth = 1.5
         chevronButton.layer.borderColor = UIColor.systemBrown.cgColor
 
@@ -96,53 +104,56 @@ class HomeViewController: UIViewController {
 
     private func updateProfileButtonImage() {
 
-        analytics.layer.cornerRadius = analytics.frame.width / 2
+        let size = analytics.bounds.size
+        analytics.layer.cornerRadius = size.width / 2
         analytics.clipsToBounds = true
+        analytics.imageEdgeInsets = .zero
+        analytics.contentEdgeInsets = .zero
 
-        // VERY IMPORTANT
-        analytics.imageView?.layer.cornerRadius = analytics.frame.width / 2
-        analytics.imageView?.clipsToBounds = true
-
-//        if let imageData = childManager?.currentChild.profileImageData,
-//           let image = UIImage(data: imageData) {
-//
-//            analytics.setBackgroundImage(nil, for: .normal)
-//
-//            analytics.setImage(image.withRenderingMode(.alwaysOriginal), for: .normal)
-//
-//            analytics.imageView?.contentMode = .scaleAspectFit
-//
-//        }
         if let imageData = childManager?.currentChild.profileImageData,
            let image = UIImage(data: imageData) {
 
+            // Pre-render a circular, aspect-fill-cropped thumbnail at exactly
+            // the button's size.  UIButton's imageView does NOT honour
+            // scaleAspectFill, so we bake the correct crop into the bitmap
+            // itself — matching what the profile screen's UIImageView shows.
+            let cropped = makeCircularThumbnail(image, size: size)
+
             analytics.setBackgroundImage(nil, for: .normal)
-
-            analytics.setImage(image.withRenderingMode(.alwaysOriginal), for: .normal)
-
+            analytics.setImage(cropped.withRenderingMode(.alwaysOriginal), for: .normal)
             analytics.contentHorizontalAlignment = .center
-            analytics.contentVerticalAlignment = .center
+            analytics.contentVerticalAlignment   = .center
+            analytics.imageView?.contentMode      = .scaleAspectFill
 
-            analytics.imageEdgeInsets = .zero
-            analytics.contentEdgeInsets = .zero
-
-            analytics.imageView?.contentMode = .scaleAspectFill
-            analytics.clipsToBounds = true
         } else {
 
-            // REMOVE EVERYTHING
             analytics.setImage(nil, for: .normal)
             analytics.setBackgroundImage(nil, for: .normal)
 
-            // THIS IS THE REAL FIX
-            // restore storyboard image manually
             let defaultImage = UIImage(systemName: "person.crop.circle.fill")
-
             analytics.setImage(defaultImage, for: .normal)
-
-            analytics.tintColor = UIColor.systemBrown
-
+            analytics.tintColor              = UIColor.systemBrown
             analytics.imageView?.contentMode = .scaleAspectFit
+        }
+    }
+
+    // MARK: - Image helpers
+    // Renders `image` into a square bitmap of `size`, aspect-fill cropped,
+    // then clips it to a circle.  The result looks identical to a UIImageView
+    // with contentMode = .scaleAspectFill and a circular corner radius.
+    private func makeCircularThumbnail(_ image: UIImage, size: CGSize) -> UIImage {
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { ctx in
+            UIBezierPath(ovalIn: CGRect(origin: .zero, size: size)).addClip()
+
+            // Aspect-fill: scale so the shorter dimension fills `size`
+            let scale = max(size.width  / image.size.width,
+                            size.height / image.size.height)
+            let drawW = image.size.width  * scale
+            let drawH = image.size.height * scale
+            let drawX = (size.width  - drawW) / 2
+            let drawY = (size.height - drawH) / 2
+            image.draw(in: CGRect(x: drawX, y: drawY, width: drawW, height: drawH))
         }
     }
 
