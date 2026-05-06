@@ -800,6 +800,9 @@
                                             <color key="baseForegroundColor" systemColor="labelColor"/>
                                             <color key="baseBackgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                         </buttonConfiguration>
+                                        <connections>
+                                            <action selector="numberButtonTapped:" destination="tZm-bJ-91C" eventType="touchUpInside" id="set-0-btn-action"/>
+                                        </connections>
                                     </button>
                                     <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="zzD-a3-ZRb">
                                         <rect key="frame" x="270" y="0.0" width="90" height="90"/>
