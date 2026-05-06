@@ -52,6 +52,7 @@ class UploadsViewController: UIViewController {
         setupSearch()
         
         updateSelectButtonTitle("Select")
+        updateSelectButtonState()
         
         let tap = UITapGestureRecognizer(target: self, action: #selector(hideSearchIfNeeded))
         tap.cancelsTouchesInView = false
@@ -68,6 +69,7 @@ class UploadsViewController: UIViewController {
         searchBar?.isHidden = true
         isSearching = false
         filteredDocs.removeAll()
+        updateSelectButtonState()
         collectionView.reloadData()
     }
     
@@ -95,6 +97,14 @@ class UploadsViewController: UIViewController {
         searchButton.setImage(UIImage(systemName: "magnifyingglass"), for: .normal)
 
         collectionView.reloadData()
+    }
+    
+    private func updateSelectButtonState() {
+
+        let hasDocuments = !ocrManager.getAllDocuments().isEmpty
+
+        selectButton.isEnabled = hasDocuments
+        selectButton.alpha = hasDocuments ? 1.0 : 0.5
     }
     // MARK: - Actions
     @IBAction func homeTapped(_ sender: UIButton) {
@@ -135,6 +145,7 @@ class UploadsViewController: UIViewController {
                 }
 
                 self.exitSelectionMode()
+                self.updateSelectButtonState()
             })
 
             present(alert, animated: true)
@@ -193,6 +204,7 @@ class UploadsViewController: UIViewController {
             ocrManager.renameDocument(docId: newDoc.id, newTitle: uniqueTitle)
 
             self.collectionView.reloadData()
+            self.updateSelectButtonState()
             self.promptForTitle(docId: newDoc.id, currentTitle: uniqueTitle)
         }
     }

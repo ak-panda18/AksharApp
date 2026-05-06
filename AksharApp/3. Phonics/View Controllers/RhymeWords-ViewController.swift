@@ -154,8 +154,15 @@ final class RhymeWordsViewController: UIViewController,
         hasSpeakerBeenTapped = true
 
         optionButtons.forEach {
+
             $0.isUserInteractionEnabled = true
-            applyUnselectedStyle($0)
+
+            // Preserve current selected state
+            if $0.isSelected {
+                applySelectedStyle($0)
+            } else {
+                applyUnselectedStyle($0)
+            }
         }
 
         speakerButton.layer.removeAnimation(forKey: "speakerWiggle")

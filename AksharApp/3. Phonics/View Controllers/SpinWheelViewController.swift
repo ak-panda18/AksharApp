@@ -36,7 +36,7 @@ class SpinWheelViewController: UIViewController {
             assert(gameTimerManager != nil, "gameTimerManager was not injected into \(type(of: self))")
             
             // Add this new line:
-            assert(writingGameplayManager != nil, "writingGameplayManager was not injected into \(type(of: self))")
+//            assert(writingGameplayManager != nil, "writingGameplayManager was not injected into \(type(of: self))")
         }
 
     override func viewDidLoad() {
@@ -74,7 +74,9 @@ class SpinWheelViewController: UIViewController {
     @objc private func wheelTapped() {
         guard !isSpinning else { return }
         isSpinning = true
-        //setGameCardsEnabled(false)
+        
+        chooseYourOwnView.isUserInteractionEnabled = false
+        chooseYourOwnView.alpha = 0.5
 
         tapTextLayer?.removeFromSuperlayer()
         tapTextLayer = nil
@@ -102,7 +104,9 @@ class SpinWheelViewController: UIViewController {
 
     private func resetWheelInteraction() {
         isSpinning = false
-        //setGameCardsEnabled(true)
+        
+        chooseYourOwnView.isUserInteractionEnabled = true
+        chooseYourOwnView.alpha = 1.0
         wheelView.isUserInteractionEnabled = true
         startIdleAnimations()
     }

@@ -25,8 +25,16 @@ class WordsCategoriesViewController: UIViewController {
         var gameTimerManager: GameTimerManager?
     
     // MARK: - Lifecycle
+//    private func verifyDependencies() {
+//        assert(writingGameplayManager != nil, "writingGameplayManager was not injected into \(type(of: self))")
+//    }
     private func verifyDependencies() {
-        assert(writingGameplayManager != nil, "writingGameplayManager was not injected into \(type(of: self))")
+
+        // Only required for normal tracing mode
+        if !isExercisesMode {
+            assert(writingGameplayManager != nil,
+                   "writingGameplayManager was not injected into \(type(of: self))")
+        }
     }
 
     override func viewDidLoad() {
