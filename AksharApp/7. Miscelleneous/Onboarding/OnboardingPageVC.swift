@@ -27,13 +27,13 @@ class OnboardingPageVC: UIPageViewController, UIPageViewControllerDataSource, UI
     ]
 
     override func viewDidLoad() {
-        UserDefaults.standard.removeObject(forKey: "hasSeenOnboarding")
         super.viewDidLoad()
 
-        if UserDefaults.standard.bool(forKey: "hasSeenOnboarding") {
-            navigateToSignIn()
-            return
-        }
+        // TODO: Uncomment the condition below to skip onboarding if the user has already seen it.
+        // if UserDefaults.standard.bool(forKey: "hasSeenOnboarding") {
+        //     navigateToSignUp()
+        //     return
+        // }
 
         dataSource = self
         delegate = self
@@ -106,7 +106,7 @@ class OnboardingPageVC: UIPageViewController, UIPageViewControllerDataSource, UI
         return vc
     }
     
-    func navigateToSignIn() {
+    func navigateToSignUp() {
         UserDefaults.standard.set(true, forKey: "hasSeenOnboarding")
 
         guard let sceneDelegate = UIApplication.shared.connectedScenes
@@ -114,7 +114,7 @@ class OnboardingPageVC: UIPageViewController, UIPageViewControllerDataSource, UI
               let container = sceneDelegate.container
         else { return }
 
-        sceneDelegate.showAuth(container: container)
+        sceneDelegate.showAuth(container: container, startAtSignUp: true)
     }
 
     // MARK: - DataSource

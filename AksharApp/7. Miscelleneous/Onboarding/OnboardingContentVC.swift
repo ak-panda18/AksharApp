@@ -65,7 +65,7 @@ class OnboardingContentVC: UIViewController {
     
     @objc private func getStartedTapped() {
         if let pageVC = parent as? OnboardingPageVC {
-            pageVC.navigateToSignIn()
+            pageVC.navigateToSignUp()
         }
     }
     

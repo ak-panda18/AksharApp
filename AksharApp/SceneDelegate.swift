@@ -1,4 +1,5 @@
 import UIKit
+import SwiftUI
 import FirebaseCore
 import FirebaseAuth
 
@@ -22,8 +23,26 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             c.childManager.resolveChild(uid: currentUser.uid)
             showHome(container: c)
         } else {
-            showAuth(container: c)
+            // TODO: Uncomment the condition below to only show onboarding if the user has never seen it.
+            // if UserDefaults.standard.bool(forKey: "hasSeenOnboarding") {
+            //     showAuth(container: c)
+            // } else {
+            //     showOnboarding()
+            // }
+            
+            // For now, always show onboarding:
+            showOnboarding()
         }
+    }
+
+    func showOnboarding() {
+        guard let c = container else { return }
+        let onboardingView = OnboardingView {
+            self.showAuth(container: c, startAtSignUp: true)
+        }
+        let host = UIHostingController(rootView: onboardingView)
+        host.modalPresentationStyle = .fullScreen
+        window?.rootViewController = host
     }
 
     func showHome(container c: AppDependencyContainer) {
@@ -36,28 +55,31 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window?.rootViewController = homeNav
     }
 
-    func showAuth(container c: AppDependencyContainer) {
+    func showAuth(container c: AppDependencyContainer, startAtSignUp: Bool = false) {
         let sb = UIStoryboard(name: "Main", bundle: nil)
         guard let signInVC = sb.instantiateViewController(
             withIdentifier: "SignInViewController") as? SignInViewController
         else { return }
         signInVC.childManager = c.childManager
-        let nav = UINavigationController(rootViewController: signInVC)
+        
+        var vcs: [UIViewController] = [signInVC]
+        
+        if startAtSignUp, let signUpVC = sb.instantiateViewController(
+            withIdentifier: "SignUpViewController") as? SignUpViewController {
+            signUpVC.childManager = c.childManager
+            vcs.append(signUpVC)
+        }
+        
+        let nav = UINavigationController()
+        nav.viewControllers = vcs
         nav.setNavigationBarHidden(true, animated: false)
         window?.rootViewController = nav
     }
 
-    /// Called after successful sign-in.
-    /// Reuses the existing container — migration has already run at launch.
-    /// Only creates a fresh container if somehow none exists (should never happen).
     func showHomeAfterAuth() {
         guard let c = container else {
-            // Safety fallback only — container is always set in scene(_:willConnectTo:)
             let fresh = AppDependencyContainer()
             container = fresh
-            // Migration is intentionally omitted here — it already ran at launch.
-            // Creating a second container is the edge case; running migration again
-            // would be a no-op but adds unnecessary work.
             if let uid = Auth.auth().currentUser?.uid {
                 fresh.childManager.resolveChild(uid: uid)
             }
@@ -82,20 +104,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                           options: .transitionCrossDissolve, animations: nil)
     }
 
-    /// Called after sign-out. Rebuilds the container so the next sign-in starts clean.
     func showAuthAfterSignOut() {
         container?.coreDataStack.flushPendingSave()
 
         let fresh = AppDependencyContainer()
         container = fresh
 
-        let sb = UIStoryboard(name: "Main", bundle: nil)
-        guard let signInVC = sb.instantiateViewController(
-            withIdentifier: "SignInViewController") as? SignInViewController else { return }
-        signInVC.childManager = fresh.childManager
-        let nav = UINavigationController(rootViewController: signInVC)
-        nav.setNavigationBarHidden(true, animated: false)
-        window?.rootViewController = nav
+        showAuth(container: fresh)
     }
 
     // MARK: - Scene Lifecycle
