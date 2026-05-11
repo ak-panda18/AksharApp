@@ -20,7 +20,8 @@ class LabelReadingViewController: UIViewController {
     @IBOutlet weak var spacingStepper: UIStepper!
     @IBOutlet weak var spacingValueLabel: UILabel!
     @IBOutlet weak var nextButton: UIButton!
-
+    @IBOutlet weak var fontSizeStepper: UIStepper!
+    
     // MARK: - Data Source
     var story: Story?
     var scannedPages: [String]?
@@ -33,6 +34,7 @@ class LabelReadingViewController: UIViewController {
     private var syllableOverlay: UIView?
     var currentWordSpacing: CGFloat = 1.0
     private var isRestartingSpeech = false
+    var currentFontSizeOffset: CGFloat = 0.0
 
     private var cleanStoryText: String {
         return storyTextString.replacingOccurrences(of: "<CENTER>", with: "")
@@ -48,6 +50,11 @@ class LabelReadingViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         verifyDependencies()
+        if let fontStepper = fontSizeStepper {
+            fontStepper.minimumValue = 0; fontStepper.maximumValue = 5
+            fontStepper.stepValue = 1; fontStepper.value = 0
+            fontStepper.wraps = false; fontStepper.autorepeat = true
+        }
         if let stepper = spacingStepper {
             stepper.minimumValue = 1; stepper.maximumValue = 5
             stepper.stepValue = 1; stepper.value = 1
@@ -79,6 +86,7 @@ class LabelReadingViewController: UIViewController {
         retakeButton?.isHidden = !isCurrentCheckpointCompleted()
         spacingStepper?.isHidden    = scannedPages == nil
         spacingValueLabel?.isHidden = scannedPages == nil
+        fontSizeStepper?.isHidden   = scannedPages == nil
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -110,6 +118,13 @@ class LabelReadingViewController: UIViewController {
         view.setNeedsLayout(); view.layoutIfNeeded()
     }
 
+    @IBAction func fontSizeStepperCHanged(_ sender: UIStepper) {
+        currentFontSizeOffset = CGFloat(sender.value)
+        StoryCollectionView.reloadData()
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+    }
+    
     @IBAction func retakeCheckpointTapped(_ sender: UIButton) {
         _ = navigateToCheckpoint(nextIndex: currentIndex + 1, forceRetake: true)
     }
@@ -271,14 +286,29 @@ private extension LabelReadingViewController {
 // MARK: - Text Formatting
 private extension LabelReadingViewController {
     func fontForStory() -> UIFont {
-        guard let story else { return UIFont(name: "ArialMT", size: 30) ?? UIFont.systemFont(ofSize: 30) }
-        switch story.difficulty.lowercased() {
-        case "level 1": return UIFont(name: "ArialMT",           size: 32) ?? UIFont.systemFont(ofSize: 32)
-        case "level 2": return UIFont(name: "TrebuchetMS",       size: 30) ?? UIFont.systemFont(ofSize: 30)
-        case "level 3": return UIFont(name: "TimesNewRomanPSMT", size: 30) ?? UIFont.systemFont(ofSize: 30)
-        default:        return UIFont.systemFont(ofSize: 30)
+            let baseSize: CGFloat
+            let fontName: String?
+            
+            if let story {
+                switch story.difficulty.lowercased() {
+                case "level 1": fontName = "ArialMT";           baseSize = 32
+                case "level 2": fontName = "TrebuchetMS";       baseSize = 30
+                case "level 3": fontName = "TimesNewRomanPSMT"; baseSize = 30
+                default:        fontName = nil;                 baseSize = 30
+                }
+            } else {
+                fontName = "ArialMT"
+                baseSize = 30
+            }
+            
+            let effectiveOffset = (scannedPages != nil) ? (currentFontSizeOffset * 2.0) : 0.0
+            let finalSize = baseSize + effectiveOffset
+            
+            if let fontName = fontName, let font = UIFont(name: fontName, size: finalSize) {
+                return font
+            }
+            return UIFont.systemFont(ofSize: finalSize)
         }
-    }
 
     func attributedText(for text: String, spacingLevel: CGFloat) -> NSAttributedString {
         let font      = fontForStory()

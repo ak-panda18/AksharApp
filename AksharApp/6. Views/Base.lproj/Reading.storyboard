@@ -577,23 +577,30 @@
                                             </collectionViewCell>
                                         </cells>
                                     </collectionView>
-                                    <stackView opaque="NO" contentMode="scaleToFill" spacing="10" translatesAutoresizingMaskIntoConstraints="NO" id="OCg-qo-vgq">
-                                        <rect key="frame" x="258.5" y="842" width="211" height="32"/>
-                                        <subviews>
-                                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Word Spacing" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="E5l-Qx-KfE">
-                                                <rect key="frame" x="0.0" y="0.0" width="107" height="32"/>
-                                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
-                                                <nil key="textColor"/>
-                                                <nil key="highlightedColor"/>
-                                            </label>
-                                            <stepper opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="750" verticalHuggingPriority="750" contentHorizontalAlignment="center" contentVerticalAlignment="center" maximumValue="100" translatesAutoresizingMaskIntoConstraints="NO" id="GD8-M5-tba">
-                                                <rect key="frame" x="117" y="0.0" width="94" height="32"/>
-                                                <connections>
-                                                    <action selector="spacingStepperChanged:" destination="Gre-WF-nEL" eventType="valueChanged" id="Vxt-V8-kwO"/>
-                                                </connections>
-                                            </stepper>
-                                        </subviews>
-                                    </stackView>
+                                    <stepper opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="750" verticalHuggingPriority="750" contentHorizontalAlignment="center" contentVerticalAlignment="center" maximumValue="100" translatesAutoresizingMaskIntoConstraints="NO" id="ZgY-V3-lpG">
+                                        <rect key="frame" x="585" y="68" width="94" height="32"/>
+                                        <connections>
+                                            <action selector="fontSizeStepperCHanged:" destination="Gre-WF-nEL" eventType="valueChanged" id="owg-RX-04F"/>
+                                        </connections>
+                                    </stepper>
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Word Spacing" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="E5l-Qx-KfE">
+                                        <rect key="frame" x="49" y="74" width="107" height="20.5"/>
+                                        <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                        <nil key="textColor"/>
+                                        <nil key="highlightedColor"/>
+                                    </label>
+                                    <stepper opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="750" verticalHuggingPriority="750" contentHorizontalAlignment="center" contentVerticalAlignment="center" maximumValue="100" translatesAutoresizingMaskIntoConstraints="NO" id="GD8-M5-tba">
+                                        <rect key="frame" x="164" y="68" width="94" height="32"/>
+                                        <connections>
+                                            <action selector="spacingStepperChanged:" destination="Gre-WF-nEL" eventType="valueChanged" id="Vxt-V8-kwO"/>
+                                        </connections>
+                                    </stepper>
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Font Size" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="flU-4N-y1M">
+                                        <rect key="frame" x="506" y="73" width="70.5" height="20.5"/>
+                                        <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                        <nil key="textColor"/>
+                                        <nil key="highlightedColor"/>
+                                    </label>
                                 </subviews>
                                 <viewLayoutGuide key="safeArea" id="eD8-oH-KXJ"/>
                                 <color key="backgroundColor" red="0.99609375" green="0.9775390625" blue="0.8881835938" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
@@ -601,19 +608,25 @@
                                     <constraint firstItem="jud-HU-x41" firstAttribute="centerX" secondItem="PTu-x9-Bs8" secondAttribute="centerX" id="7sj-0y-d08"/>
                                     <constraint firstItem="YZN-3q-jDE" firstAttribute="leading" secondItem="PTu-x9-Bs8" secondAttribute="leading" constant="8" id="85Z-mt-o0H"/>
                                     <constraint firstItem="9zf-uu-dOm" firstAttribute="top" secondItem="cPI-pe-HWj" secondAttribute="bottom" constant="34" id="8cM-Yz-LmS"/>
+                                    <constraint firstItem="ZgY-V3-lpG" firstAttribute="leading" secondItem="flU-4N-y1M" secondAttribute="trailing" constant="8" symbolic="YES" id="9Ha-zi-Ttq"/>
                                     <constraint firstAttribute="bottom" secondItem="9zf-uu-dOm" secondAttribute="bottom" constant="17" id="9cU-gs-1fP"/>
+                                    <constraint firstItem="GD8-M5-tba" firstAttribute="leading" secondItem="E5l-Qx-KfE" secondAttribute="trailing" constant="8" symbolic="YES" id="BGU-2B-8fM"/>
                                     <constraint firstItem="cPI-pe-HWj" firstAttribute="top" secondItem="jud-HU-x41" secondAttribute="bottom" constant="62" id="E4u-Fx-Vcb"/>
                                     <constraint firstAttribute="bottom" secondItem="IYt-jE-Chk" secondAttribute="bottom" constant="34" id="FOW-Z5-cmc"/>
                                     <constraint firstAttribute="trailing" secondItem="9zf-uu-dOm" secondAttribute="trailing" constant="8" id="LhQ-qJ-zOU"/>
                                     <constraint firstItem="jud-HU-x41" firstAttribute="top" secondItem="PTu-x9-Bs8" secondAttribute="top" constant="22" id="LlD-97-muh"/>
                                     <constraint firstItem="cPI-pe-HWj" firstAttribute="leading" secondItem="eD8-oH-KXJ" secondAttribute="leading" constant="49" id="MO9-cB-Bcw"/>
-                                    <constraint firstItem="OCg-qo-vgq" firstAttribute="centerX" secondItem="PTu-x9-Bs8" secondAttribute="centerX" id="SRJ-2d-nC8"/>
-                                    <constraint firstItem="IYt-jE-Chk" firstAttribute="top" secondItem="OCg-qo-vgq" secondAttribute="bottom" constant="8" id="UGG-lk-Xtz"/>
+                                    <constraint firstItem="flU-4N-y1M" firstAttribute="top" secondItem="jud-HU-x41" secondAttribute="bottom" constant="27" id="PK4-2w-bhK"/>
+                                    <constraint firstItem="E5l-Qx-KfE" firstAttribute="top" secondItem="eD8-oH-KXJ" secondAttribute="top" constant="74" id="UZq-Ii-eJo"/>
                                     <constraint firstItem="YZN-3q-jDE" firstAttribute="centerY" secondItem="PTu-x9-Bs8" secondAttribute="centerY" id="VmY-5L-mIa"/>
+                                    <constraint firstItem="eD8-oH-KXJ" firstAttribute="trailing" secondItem="ZgY-V3-lpG" secondAttribute="trailing" constant="49" id="Z2N-yG-65H"/>
                                     <constraint firstItem="cPI-pe-HWj" firstAttribute="centerX" secondItem="PTu-x9-Bs8" secondAttribute="centerX" id="cYH-X0-UfU"/>
+                                    <constraint firstItem="GD8-M5-tba" firstAttribute="top" secondItem="jud-HU-x41" secondAttribute="bottom" constant="22" id="eNA-ik-Sqt"/>
                                     <constraint firstItem="X0h-ky-cse" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="YZN-3q-jDE" secondAttribute="trailing" constant="8" symbolic="YES" id="hDs-El-G5N"/>
                                     <constraint firstAttribute="trailing" secondItem="X0h-ky-cse" secondAttribute="trailing" constant="8" id="iRA-co-8Ur"/>
                                     <constraint firstItem="IYt-jE-Chk" firstAttribute="centerX" secondItem="PTu-x9-Bs8" secondAttribute="centerX" id="jOp-vA-E5F"/>
+                                    <constraint firstItem="E5l-Qx-KfE" firstAttribute="leading" secondItem="eD8-oH-KXJ" secondAttribute="leading" constant="49" id="mf3-jL-6nf"/>
+                                    <constraint firstItem="ZgY-V3-lpG" firstAttribute="top" secondItem="eD8-oH-KXJ" secondAttribute="top" constant="68" id="sTR-Mz-II5"/>
                                     <constraint firstItem="eD8-oH-KXJ" firstAttribute="trailing" secondItem="cPI-pe-HWj" secondAttribute="trailing" constant="49" id="uN7-vf-WTk"/>
                                     <constraint firstItem="X0h-ky-cse" firstAttribute="centerY" secondItem="PTu-x9-Bs8" secondAttribute="centerY" id="wpR-4w-IWC"/>
                                 </constraints>
@@ -696,6 +709,7 @@
                     </view>
                     <connections>
                         <outlet property="StoryCollectionView" destination="cPI-pe-HWj" id="81S-zu-w6G"/>
+                        <outlet property="fontSizeStepper" destination="ZgY-V3-lpG" id="PPb-DP-5ne"/>
                         <outlet property="nextButton" destination="X0h-ky-cse" id="sfg-s0-kCI"/>
                         <outlet property="previousButton" destination="YZN-3q-jDE" id="Be7-Kr-c9X"/>
                         <outlet property="progressView" destination="IYt-jE-Chk" id="bSg-Qw-zgc"/>
@@ -1370,13 +1384,13 @@
             <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
         </systemColor>
         <systemColor name="systemBrownColor">
-            <color red="0.67450980392156867" green="0.49803921568627452" blue="0.36862745098039218" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+            <color red="0.63529411759999999" green="0.51764705879999995" blue="0.36862745099999999" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </systemColor>
         <systemColor name="systemGrayColor">
-            <color red="0.55686274509803924" green="0.55686274509803924" blue="0.57647058823529407" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+            <color red="0.5568627451" green="0.5568627451" blue="0.57647058819999997" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </systemColor>
         <systemColor name="systemGreenColor">
-            <color red="0.20392156862745098" green="0.7803921568627451" blue="0.34901960784313724" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+            <color red="0.20392156859999999" green="0.78039215689999997" blue="0.34901960780000002" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </systemColor>
         <systemColor name="systemYellowColor">
             <color red="1" green="0.80000000000000004" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
