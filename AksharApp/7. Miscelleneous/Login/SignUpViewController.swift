@@ -59,7 +59,12 @@ class SignUpViewController: UIViewController, UITextFieldDelegate {
                 req?.displayName = name
                 req?.commitChanges(completion: nil)
 
-                result?.user.sendEmailVerification { error in
+                let actionCodeSettings = ActionCodeSettings()
+                actionCodeSettings.url = URL(string: "https://akshar-1405.web.app/index.html")
+                actionCodeSettings.handleCodeInApp = true
+                actionCodeSettings.setIOSBundleID(Bundle.main.bundleIdentifier!)
+
+                result?.user.sendEmailVerification(with: actionCodeSettings) { error in
                     if let error {
                         logger.warning("SignUpVC: verification email failed – \(error)")
                     }

@@ -101,6 +101,30 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     // MARK: - Scene Lifecycle
     func sceneDidDisconnect(_ scene: UIScene) {}
 
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        guard let url = URLContexts.first?.url else { return }
+        
+        let urlString = url.absoluteString
+        if urlString.starts(with: "akshar://") {
+            guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                  let queryItems = components.queryItems else { return }
+            
+            if let oobCode = queryItems.first(where: { $0.name == "oobCode" })?.value {
+                Auth.auth().applyActionCode(oobCode) { [weak self] error in
+                    if let error = error {
+                        print("Error verifying email: \(error.localizedDescription)")
+                        return
+                    }
+                    Auth.auth().currentUser?.reload { _ in
+                        DispatchQueue.main.async {
+                            self?.showHomeAfterAuth()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     func sceneDidBecomeActive(_ scene: UIScene) {
         guard let uid = container?.childManager.currentChild.id?.uuidString else { return }
         container?.profileStore.recordAppOpen(uid: uid)

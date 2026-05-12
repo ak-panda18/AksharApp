@@ -10,6 +10,16 @@
 				<string>com.googleusercontent.apps.970855744202-ncusahjiv4fm03iksmek2u22mq6cu4vh</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>aksharAuth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>akshar</string>
+			</array>
+		</dict>
 	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
