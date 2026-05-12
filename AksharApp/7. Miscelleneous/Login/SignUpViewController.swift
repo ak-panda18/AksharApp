@@ -18,6 +18,9 @@ class SignUpViewController: UIViewController, UITextFieldDelegate {
 
     var childManager: ChildManager!
     
+    private let nameErrorLabel = UILabel()
+    private var errorTimer: DispatchWorkItem?
+    
     private func verifyDependencies() {
         assert(childManager != nil, "childManager was not injected into \(type(of: self))")
     }
@@ -26,6 +29,31 @@ class SignUpViewController: UIViewController, UITextFieldDelegate {
         super.viewDidLoad()
         verifyDependencies()
         setupKeyboardObservers()
+        
+        textFields[2].delegate = self
+        
+        let ageButton = UIButton(type: .custom)
+        ageButton.translatesAutoresizingMaskIntoConstraints = false
+        ageButton.addTarget(self, action: #selector(showAgeDropDown(_:)), for: .touchUpInside)
+        view.addSubview(ageButton)
+        NSLayoutConstraint.activate([
+            ageButton.topAnchor.constraint(equalTo: textFields[0].topAnchor),
+            ageButton.bottomAnchor.constraint(equalTo: textFields[0].bottomAnchor),
+            ageButton.leadingAnchor.constraint(equalTo: textFields[0].leadingAnchor),
+            ageButton.trailingAnchor.constraint(equalTo: textFields[0].trailingAnchor)
+        ])
+        
+        setupNameErrorLabel()
+    }
+    
+    @objc private func showAgeDropDown(_ sender: UIButton) {
+        let vc = AgeDropDownViewController()
+        vc.popoverPresentationController?.sourceView = sender
+        vc.popoverPresentationController?.sourceRect = sender.bounds
+        vc.onSelect = { [weak self] age in
+            self?.textFields[0].text = "\(age)"
+        }
+        present(vc, animated: true)
     }
 
     override func viewDidLayoutSubviews() {
@@ -116,6 +144,76 @@ class SignUpViewController: UIViewController, UITextFieldDelegate {
     }
 }
 
+
+
+// MARK: - Name Validation
+extension SignUpViewController {
+    func textField(_ textField: UITextField,
+                   shouldChangeCharactersIn range: NSRange,
+                   replacementString string: String) -> Bool {
+        
+        if textField == textFields[2] {
+            clearNameError()
+            
+            if string.isEmpty { return true }
+            
+            let allowedCharacterSet = CharacterSet.letters.union(CharacterSet.whitespaces)
+            if string.rangeOfCharacter(from: allowedCharacterSet.inverted) != nil {
+                showNameError("Only letters and spaces are allowed.")
+                return false
+            }
+        }
+        
+        return true
+    }
+    
+    private func setupNameErrorLabel() {
+        nameErrorLabel.textColor = .systemRed
+        nameErrorLabel.font = UIFont.systemFont(ofSize: 13, weight: .medium)
+        nameErrorLabel.numberOfLines = 0
+        nameErrorLabel.isHidden = true
+        nameErrorLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(nameErrorLabel)
+        
+        NSLayoutConstraint.activate([
+            nameErrorLabel.topAnchor.constraint(equalTo: textFields[2].bottomAnchor, constant: 4),
+            nameErrorLabel.leadingAnchor.constraint(equalTo: textFields[2].leadingAnchor, constant: 4),
+            nameErrorLabel.trailingAnchor.constraint(equalTo: textFields[2].trailingAnchor)
+        ])
+    }
+
+    private func showNameError(_ message: String) {
+        nameErrorLabel.text = message
+        nameErrorLabel.isHidden = false
+        textFields[2].layer.borderWidth = 1.5
+        textFields[2].layer.borderColor = UIColor.systemRed.cgColor
+        textFields[2].layer.cornerRadius = textFields[2].bounds.height / 2
+        shake(view: textFields[2])
+        
+        errorTimer?.cancel()
+        let timer = DispatchWorkItem { [weak self] in
+            self?.clearNameError()
+        }
+        errorTimer = timer
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: timer)
+    }
+
+    private func clearNameError() {
+        errorTimer?.cancel()
+        nameErrorLabel.isHidden = true
+        textFields[2].layer.borderWidth = 1
+        textFields[2].layer.borderColor = UIColor.lightGray.cgColor
+    }
+    
+    private func shake(view: UIView) {
+        let animation = CAKeyframeAnimation(keyPath: "transform.translation.x")
+        animation.values = [-10, 10, -8, 8, -5, 5, 0]
+        animation.duration = 0.35
+        animation.timingFunction = CAMediaTimingFunction(name: .linear)
+        view.layer.add(animation, forKey: "shake")
+    }
+}
+
 // MARK: - Keyboard & Styling
 extension SignUpViewController {
     func setupKeyboardObservers() {
@@ -132,18 +230,23 @@ extension SignUpViewController {
         scrollView.contentInset.bottom = 0
     }
     private func styleTextFieldsAndButton() {
-        textFields.forEach {
-            $0.backgroundColor     = .white
-            $0.layer.borderWidth   = 1
-            $0.layer.borderColor   = UIColor.lightGray.cgColor
-            $0.layer.cornerRadius  = $0.bounds.height / 2
-            $0.layer.masksToBounds = true
+        for (index, textField) in textFields.enumerated() {
+            textField.backgroundColor     = .white
+            if index == 2 && !nameErrorLabel.isHidden {
+                textField.layer.borderWidth   = 1.5
+                textField.layer.borderColor   = UIColor.systemRed.cgColor
+            } else {
+                textField.layer.borderWidth   = 1
+                textField.layer.borderColor   = UIColor.lightGray.cgColor
+            }
+            textField.layer.cornerRadius  = textField.bounds.height / 2
+            textField.layer.masksToBounds = true
             
-            let padding = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: $0.bounds.height))
-            $0.leftView  = padding
-            $0.leftViewMode  = .always
-            $0.rightView = UIView(frame: padding.frame)
-            $0.rightViewMode = .always
+            let padding = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: textField.bounds.height))
+            textField.leftView  = padding
+            textField.leftViewMode  = .always
+            textField.rightView = UIView(frame: padding.frame)
+            textField.rightViewMode = .always
         }
         signUpButton.layer.cornerRadius = signUpButton.bounds.height / 2
     }
@@ -152,5 +255,51 @@ extension SignUpViewController {
             textFields[index + 1].becomeFirstResponder()
         } else { textField.resignFirstResponder() }
         return true
+    }
+}
+
+class AgeDropDownViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UIPopoverPresentationControllerDelegate {
+    let tableView = UITableView()
+    var onSelect: ((Int) -> Void)?
+    
+    init() {
+        super.init(nibName: nil, bundle: nil)
+        self.modalPresentationStyle = .popover
+        self.popoverPresentationController?.delegate = self
+    }
+    
+    required init?(coder: NSCoder) { fatalError() }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        tableView.dataSource = self
+        tableView.delegate = self
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+        tableView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(tableView)
+        NSLayoutConstraint.activate([
+            tableView.topAnchor.constraint(equalTo: view.topAnchor),
+            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        ])
+        preferredContentSize = CGSize(width: 150, height: 250)
+    }
+    
+    func adaptivePresentationStyle(for controller: UIPresentationController) -> UIModalPresentationStyle {
+        return .none
+    }
+    
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { 21 }
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
+        cell.textLabel?.text = "\(indexPath.row)"
+        cell.textLabel?.textAlignment = .center
+        cell.textLabel?.font = UIFont.systemFont(ofSize: 16)
+        return cell
+    }
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        onSelect?(indexPath.row)
+        dismiss(animated: true)
     }
 }

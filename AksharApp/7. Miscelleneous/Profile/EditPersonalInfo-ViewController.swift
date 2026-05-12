@@ -24,7 +24,9 @@ class EditPersonalInfo_ViewController: UIViewController, UIPickerViewDataSource,
 
     let genderOptions  = ["Male", "Female", "Other"]
     var selectedGender = "Male"
-    private let ageErrorLabel = UILabel()
+    private let firstNameErrorLabel = UILabel()
+    private let lastNameErrorLabel = UILabel()
+    private var errorTimers: [UITextField: DispatchWorkItem] = [:]
 
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -36,14 +38,36 @@ class EditPersonalInfo_ViewController: UIViewController, UIPickerViewDataSource,
         lastNameTextField.text  = currentLastName
         ageTextField.text       = currentAge.map { String($0) }
         
-        ageTextField.delegate = self
-        ageTextField.keyboardType = .numberPad
-        setupAgeErrorLabel()
+        firstNameTextField.delegate = self
+        lastNameTextField.delegate = self
+        
+        let ageButton = UIButton(type: .custom)
+        ageButton.translatesAutoresizingMaskIntoConstraints = false
+        ageButton.addTarget(self, action: #selector(showAgeDropDown(_:)), for: .touchUpInside)
+        view.addSubview(ageButton)
+        NSLayoutConstraint.activate([
+            ageButton.topAnchor.constraint(equalTo: ageTextField.topAnchor),
+            ageButton.bottomAnchor.constraint(equalTo: ageTextField.bottomAnchor),
+            ageButton.leadingAnchor.constraint(equalTo: ageTextField.leadingAnchor),
+            ageButton.trailingAnchor.constraint(equalTo: ageTextField.trailingAnchor)
+        ])
+        
+        setupNameErrorLabels()
 
         if let g = currentGender, let idx = genderOptions.firstIndex(of: g) {
             genderPicker.selectRow(idx, inComponent: 0, animated: false)
             selectedGender = g
         }
+    }
+
+    @objc private func showAgeDropDown(_ sender: UIButton) {
+        let vc = AgeDropDownViewController()
+        vc.popoverPresentationController?.sourceView = sender
+        vc.popoverPresentationController?.sourceRect = sender.bounds
+        vc.onSelect = { [weak self] age in
+            self?.ageTextField.text = "\(age)"
+        }
+        present(vc, animated: true)
     }
 
     // MARK: - UIPickerView
@@ -55,69 +79,68 @@ class EditPersonalInfo_ViewController: UIViewController, UIPickerViewDataSource,
                    shouldChangeCharactersIn range: NSRange,
                    replacementString string: String) -> Bool {
 
-        clearAgeError()
+        clearNameError(for: textField)
 
         // Allow backspace
         if string.isEmpty {
             return true
         }
 
-        // Only numbers allowed
-        if string.rangeOfCharacter(from: CharacterSet.decimalDigits.inverted) != nil {
-
-            showAgeError("Only numbers are allowed.")
-
-            return false
-        }
-
-        // Predict final value
-        let currentText = textField.text ?? ""
-        let updatedText = (currentText as NSString).replacingCharacters(in: range, with: string)
-
-        // Prevent age > 100
-        if let value = Int(updatedText), value > 100 {
-
-            showAgeError("Age must be between 0 and 100.")
-
+        let allowedCharacterSet = CharacterSet.letters.union(CharacterSet.whitespaces)
+        if string.rangeOfCharacter(from: allowedCharacterSet.inverted) != nil {
+            showNameError("Only letters and spaces are allowed.", for: textField)
             return false
         }
 
         return true
     }
-    private func setupAgeErrorLabel() {
-
-        ageErrorLabel.textColor = .systemRed
-        ageErrorLabel.font = UIFont.systemFont(ofSize: 13, weight: .medium)
-        ageErrorLabel.numberOfLines = 0
-        ageErrorLabel.isHidden = true
-        ageErrorLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        view.addSubview(ageErrorLabel)
+    
+    private func setupNameErrorLabels() {
+        [firstNameErrorLabel, lastNameErrorLabel].forEach { label in
+            label.textColor = .systemRed
+            label.font = UIFont.systemFont(ofSize: 13, weight: .medium)
+            label.numberOfLines = 0
+            label.isHidden = true
+            label.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(label)
+        }
 
         NSLayoutConstraint.activate([
-            ageErrorLabel.topAnchor.constraint(equalTo: ageTextField.bottomAnchor, constant: 4),
-            ageErrorLabel.leadingAnchor.constraint(equalTo: ageTextField.leadingAnchor, constant: 4),
-            ageErrorLabel.trailingAnchor.constraint(equalTo: ageTextField.trailingAnchor)
+            firstNameErrorLabel.topAnchor.constraint(equalTo: firstNameTextField.bottomAnchor, constant: 4),
+            firstNameErrorLabel.leadingAnchor.constraint(equalTo: firstNameTextField.leadingAnchor, constant: 4),
+            firstNameErrorLabel.trailingAnchor.constraint(equalTo: firstNameTextField.trailingAnchor),
+            
+            lastNameErrorLabel.topAnchor.constraint(equalTo: lastNameTextField.bottomAnchor, constant: 4),
+            lastNameErrorLabel.leadingAnchor.constraint(equalTo: lastNameTextField.leadingAnchor, constant: 4),
+            lastNameErrorLabel.trailingAnchor.constraint(equalTo: lastNameTextField.trailingAnchor)
         ])
     }
 
-    private func showAgeError(_ message: String) {
+    private func showNameError(_ message: String, for textField: UITextField) {
+        let label = textField == firstNameTextField ? firstNameErrorLabel : lastNameErrorLabel
+        label.text = message
+        label.isHidden = false
 
-        ageErrorLabel.text = message
-        ageErrorLabel.isHidden = false
+        textField.layer.borderWidth = 1.5
+        textField.layer.borderColor = UIColor.systemRed.cgColor
+        textField.layer.cornerRadius = 6
 
-        ageTextField.layer.borderWidth = 1.5
-        ageTextField.layer.borderColor = UIColor.systemRed.cgColor
-        ageTextField.layer.cornerRadius = 6
-
-        shake(view: ageTextField)
+        shake(view: textField)
+        
+        errorTimers[textField]?.cancel()
+        let timer = DispatchWorkItem { [weak self] in
+            self?.clearNameError(for: textField)
+        }
+        errorTimers[textField] = timer
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: timer)
     }
 
-    private func clearAgeError() {
-
-        ageErrorLabel.isHidden = true
-        ageTextField.layer.borderWidth = 0
-        ageTextField.layer.borderColor = UIColor.clear.cgColor
+    private func clearNameError(for textField: UITextField) {
+        errorTimers[textField]?.cancel()
+        let label = textField == firstNameTextField ? firstNameErrorLabel : lastNameErrorLabel
+        label.isHidden = true
+        textField.layer.borderWidth = 0
+        textField.layer.borderColor = UIColor.clear.cgColor
     }
 
     private func shake(view: UIView) {
@@ -142,9 +165,11 @@ class EditPersonalInfo_ViewController: UIViewController, UIPickerViewDataSource,
         let agText = ageTextField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard let ageValue = Int(agText),
               ageValue >= 0,
-              ageValue <= 100 else {
+              ageValue <= 20 else {
 
-            showAgeError("Please enter a valid age between 0 and 100.")
+            let alert = UIAlertController(title: nil, message: "Please enter a valid age between 0 and 20.", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            present(alert, animated: true)
 
             return
         }
