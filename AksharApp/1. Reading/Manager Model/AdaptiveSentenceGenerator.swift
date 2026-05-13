@@ -60,9 +60,25 @@ final class AdaptiveSentenceGenerator {
             }
         } catch {
             print("Foundation Model failed: \(error)")
+            // Fallback to a smart local sentence builder if AI is missing
+            return buildLocalSentence(from: Array(cleanedWords))
         }
 
-        return getSafeDefaultSentence()
+        return buildLocalSentence(from: Array(cleanedWords))
+    }
+
+    private func buildLocalSentence(from words: [String]) -> String {
+        guard !words.isEmpty else { return getSafeDefaultSentence() }
+        
+        let connectors = ["The", "A", "I saw a", "We found a", "Look at the"]
+        let actions = ["is in the garden", "went to play", "looks very nice", "is happy", "is running"]
+        
+        if words.count == 1 {
+            return "\(connectors.randomElement()!) \(words[0]) \(actions.randomElement()!)."
+        } else {
+            let joinedWords = words.dropLast().joined(separator: ", ") + " and " + words.last!
+            return "\(connectors.randomElement()!) \(joinedWords) are here today."
+        }
     }
 
     private func isDictionaryWord(_ word: String) -> Bool {

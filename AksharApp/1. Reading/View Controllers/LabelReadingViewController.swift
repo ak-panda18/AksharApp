@@ -21,7 +21,7 @@ class LabelReadingViewController: UIViewController {
     @IBOutlet weak var spacingValueLabel: UILabel!
     @IBOutlet weak var nextButton: UIButton!
     @IBOutlet weak var fontSizeStepper: UIStepper!
-    
+    @IBOutlet weak var fontSizeLabel: UILabel!
     // MARK: - Data Source
     var story: Story?
     var scannedPages: [String]?
@@ -83,10 +83,19 @@ class LabelReadingViewController: UIViewController {
         StoryCollectionView.reloadData()
         updateProgress()
         updateChevronEnabledState()
-        retakeButton?.isHidden = !isCurrentCheckpointCompleted()
+        
+        // ONLY show if this page is a checkpoint AND it is already completed
+        if let st = story, st.content[currentIndex].checkAfter && isCurrentCheckpointCompleted() {
+            retakeButton?.isHidden = false
+        } else {
+            retakeButton?.isHidden = true
+        }
+        
         spacingStepper?.isHidden    = scannedPages == nil
         spacingValueLabel?.isHidden = scannedPages == nil
         fontSizeStepper?.isHidden   = scannedPages == nil
+        fontSizeLabel?.isHidden     = scannedPages == nil
+    
     }
 
     override func viewDidAppear(_ animated: Bool) {

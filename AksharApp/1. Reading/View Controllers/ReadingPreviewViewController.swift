@@ -192,23 +192,29 @@ final class ReadingPreviewViewController: UIViewController {
     private func updateReadButton(button: UIButton, progressView: UIProgressView, story: Story) {
         let (savedIndex, isCompleted) = storyManager.getProgress(for: story.id)
         let totalPages = max(1, story.content.count)
+        let green = UIColor(red: 0.22, green: 0.73, blue: 0.35, alpha: 1)
 
         var title = "Read"
+        var titleColor = UIColor.white
         
-        button.backgroundColor = .systemGreen
+        button.configuration = nil
         button.layer.cornerRadius = button.bounds.height / 2
+        button.layer.borderWidth = 0
+        button.layer.borderColor = nil
         
         if isCompleted {
             title = "Read Again"
+            titleColor = .black
             progressView.progress = 1.0
             progressView.isHidden = false
-            button.backgroundColor = .systemGreen
+            button.backgroundColor = .white
+            button.layer.borderWidth = 3
+            button.layer.borderColor = green.cgColor
         }
         else if savedIndex > 0 {
             title = "Continue"
-            progressView.progress = Float(savedIndex) / Float(totalPages)
+            progressView.progress = pageProgressRatio(currentPageIndex: savedIndex, totalPages: totalPages)
             progressView.isHidden = false
-            button.configuration = nil
             button.backgroundColor = .systemBlue
         }
         else {
@@ -216,16 +222,22 @@ final class ReadingPreviewViewController: UIViewController {
             progressView.progress = 0.0
             progressView.isHidden = true
             
-            button.backgroundColor = .systemGreen
+            button.backgroundColor = green
         }
 
         let font = UIFont.systemFont(ofSize: 20, weight: .semibold)
         let attributedTitle = NSAttributedString(
             string: title,
-            attributes: [.font: font, .foregroundColor: UIColor.white]
+            attributes: [.font: font, .foregroundColor: titleColor]
         )
 
         button.setAttributedTitle(attributedTitle, for: .normal)
+    }
+
+    private func pageProgressRatio(currentPageIndex: Int, totalPages: Int) -> Float {
+        guard totalPages > 1, currentPageIndex > 0 else { return 0 }
+        let clampedIndex = min(max(currentPageIndex, 0), totalPages - 1)
+        return Float(clampedIndex) / Float(totalPages - 1)
     }
     private func getCompletedCheckpoints(for story: Story) -> Int {
         return story.content.filter { page in
@@ -395,6 +407,7 @@ final class ReadingPreviewViewController: UIViewController {
         let usableWidth = width - (2 * padding)
         
         let green = UIColor(red: 0.22, green: 0.73, blue: 0.35, alpha: 1)
+        let nextCheckpointGray = UIColor.systemGray4
         
         // 🔹 BASE LINE
         let baseLine = UIView(
@@ -413,7 +426,7 @@ final class ReadingPreviewViewController: UIViewController {
         
         let progressRatio: CGFloat = isCompleted
         ? 1.0
-        : CGFloat(currentPage) / CGFloat(totalPages)
+        : CGFloat(pageProgressRatio(currentPageIndex: currentPage, totalPages: totalPages))
         
         let progressLine = UIView(
             frame: CGRect(
@@ -427,7 +440,8 @@ final class ReadingPreviewViewController: UIViewController {
         container.addSubview(progressLine)
         
         // 🔹 NODES (milestones)
-        let nextIndex = currentPage > 0 ? checkpoints.firstIndex(where: { !$0.completed }) : nil
+        let lastCompletedIndex = checkpoints.indices.last(where: { checkpoints[$0].completed })
+        let nextIndex = checkpoints.firstIndex(where: { !$0.completed })
         
         for (index, checkpoint) in checkpoints.enumerated() {
             
@@ -446,11 +460,11 @@ final class ReadingPreviewViewController: UIViewController {
                 // ◎ Next milestone (bullseye)
                 node.backgroundColor = .clear
                 node.layer.borderWidth = 2
-                node.layer.borderColor = green.cgColor
+                node.layer.borderColor = nextCheckpointGray.cgColor
                 
                 let innerDot = UIView(frame: CGRect(x: 3, y: 3, width: 6, height: 6))
                 innerDot.layer.cornerRadius = 3
-                innerDot.backgroundColor = green
+                innerDot.backgroundColor = nextCheckpointGray
                 node.addSubview(innerDot)
             }
             else {
@@ -465,8 +479,8 @@ final class ReadingPreviewViewController: UIViewController {
             container.addSubview(node)
             
             // 👇 NEW: Hovering Bullseye Logic
-            if checkpoint.completed || index == nextIndex {
-                let isGrayscale = (index == nextIndex) // Grayscale if it's the next target
+            if index == lastCompletedIndex || index == nextIndex {
+                let isGrayscale = (index == nextIndex)
                 let emojiImageView = UIImageView(image: getBullseyeImage(isGrayscale: isGrayscale))
                 
                 // Position it hovering perfectly above the node

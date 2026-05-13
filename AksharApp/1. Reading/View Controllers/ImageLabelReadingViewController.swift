@@ -334,13 +334,14 @@ private extension ImageLabelReadingViewController {
     }
 
     func updateRetakeButtonVisibility() {
-        guard let story else { retakeButton.isHidden = true; return }
+        guard let story = story else { retakeButton?.isHidden = true; return }
         let currentPage = story.content[currentIndex]
-        guard currentPage.checkAfter else { retakeButton.isHidden = true; return }
-        if let item = storyManager.getCheckpointItem(storyId: story.id, pageNumber: currentPage.pageNumber) {
-            retakeButton.isHidden = !storyManager.isCheckpointCompleted(storyId: story.id, checkpointText: item.text)
+        
+        // ONLY show if this page is a checkpoint AND it is already completed
+        if currentPage.checkAfter && isCurrentCheckpointCompleted() {
+            retakeButton?.isHidden = false
         } else {
-            retakeButton.isHidden = true
+            retakeButton?.isHidden = true
         }
     }
 
