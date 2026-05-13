@@ -132,10 +132,30 @@ var checkpointHistoryManager: CheckpointHistoryManager!
         cell.coloredTextLabel.attributedText = nil
         cell.coloredTextLabel.text = nil
 
-        let attributed = originalText.colored(
-            matching: spokenWords,
-            font: storyFont
-        )
+        let originalWords = originalText.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        let spokenSet = Set(spokenWords.map { $0.trimmingCharacters(in: .punctuationCharacters).lowercased() })
+
+        let attributed = NSMutableAttributedString()
+
+        for word in originalWords {
+            let cleanOriginal = word
+                .trimmingCharacters(in: .punctuationCharacters)
+                .lowercased()
+
+            let color: UIColor = spokenSet.contains(cleanOriginal)
+                ? .systemGreen
+                : .systemRed
+
+            let attrs: [NSAttributedString.Key: Any] = [
+                .foregroundColor: color,
+                .font: storyFont
+            ]
+
+            attributed.append(NSAttributedString(
+                string: word + " ",
+                attributes: attrs
+            ))
+        }
 
         cell.coloredTextLabel.attributedText = attributed
         

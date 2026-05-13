@@ -426,6 +426,20 @@
                                     <action selector="homeTapped:" destination="BK9-2s-T7v" eventType="touchUpInside" id="J4R-n9-iEM"/>
                                 </connections>
                             </button>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="d06-Fg-27e">
+                                <rect key="frame" x="660" y="39" width="80" height="60"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="60" id="Oef-nz-NbM"/>
+                                    <constraint firstAttribute="width" constant="80" id="jJP-C8-pgv"/>
+                                </constraints>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="filled" title="Skip">
+                                    <color key="baseBackgroundColor" red="0.4782714844" green="0.3479003906" blue="0.23583985869999999" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
+                                </buttonConfiguration>
+                                <connections>
+                                    <action selector="skipTapped:" destination="BK9-2s-T7v" eventType="touchUpInside" id="GOc-Gy-5Ua"/>
+                                </connections>
+                            </button>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="Dko-V4-5Iq"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
@@ -434,8 +448,10 @@
                             <constraint firstItem="cxk-lp-dtz" firstAttribute="leading" secondItem="Dko-V4-5Iq" secondAttribute="leading" constant="53" id="9bJ-9j-ISd"/>
                             <constraint firstItem="Dko-V4-5Iq" firstAttribute="trailing" secondItem="WSP-g3-wEG" secondAttribute="trailing" constant="70" id="AZo-i1-9zH"/>
                             <constraint firstItem="oif-lX-QUy" firstAttribute="leading" secondItem="cxk-lp-dtz" secondAttribute="trailing" constant="24" id="BgL-Ch-5fm"/>
+                            <constraint firstItem="d06-Fg-27e" firstAttribute="top" secondItem="Dko-V4-5Iq" secondAttribute="top" constant="19" id="Exs-DD-ad2"/>
                             <constraint firstItem="Dko-V4-5Iq" firstAttribute="bottom" secondItem="dUu-dH-Tn5" secondAttribute="bottom" constant="34" id="JqC-cm-zqV"/>
                             <constraint firstItem="oif-lX-QUy" firstAttribute="top" secondItem="Dko-V4-5Iq" secondAttribute="top" constant="19" id="Pjy-gf-5fj"/>
+                            <constraint firstItem="Dko-V4-5Iq" firstAttribute="trailing" secondItem="d06-Fg-27e" secondAttribute="trailing" constant="70" id="SHv-Yo-nxZ"/>
                             <constraint firstItem="WSP-g3-wEG" firstAttribute="top" secondItem="Dko-V4-5Iq" secondAttribute="top" constant="90" id="STM-Qt-kYw"/>
                             <constraint firstItem="Dko-V4-5Iq" firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="cxk-lp-dtz" secondAttribute="trailing" symbolic="YES" id="UaI-kU-3KG"/>
                             <constraint firstItem="cxk-lp-dtz" firstAttribute="top" secondItem="JGK-eY-vbm" secondAttribute="topMargin" constant="19" id="Zhg-6E-Q5M"/>
@@ -455,6 +471,7 @@
                         <outlet property="instructionLabel" destination="1fG-Rp-AY4" id="rSr-qr-WWW"/>
                         <outlet property="micButton" destination="odx-t3-iym" id="eIc-kR-lLY"/>
                         <outlet property="previousScoresButton" destination="uIY-Zc-9Xa" id="zxe-fh-sDc"/>
+                        <outlet property="skipButton" destination="d06-Fg-27e" id="oFn-9q-MM2"/>
                         <outlet property="textView" destination="aTy-W3-biD" id="tmK-4V-xyt"/>
                         <outlet property="titleView" destination="WSP-g3-wEG" id="vjS-4x-ein"/>
                         <outlet property="videoContainerView" destination="HJT-Ur-0Vv" id="3PJ-08-cNk"/>
@@ -462,7 +479,7 @@
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="3lY-Tb-NAL" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="-1245" y="-1201"/>
+            <point key="canvasLocation" x="-1245.185185185185" y="-1201.1111111111111"/>
         </scene>
         <!--Label Reading View Controller-->
         <scene sceneID="Y7i-IN-GDd">
@@ -596,7 +613,7 @@
                                         </connections>
                                     </stepper>
                                     <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Font Size" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="flU-4N-y1M">
-                                        <rect key="frame" x="506" y="73" width="70.5" height="20.5"/>
+                                        <rect key="frame" x="506.5" y="73" width="70.5" height="20.5"/>
                                         <fontDescription key="fontDescription" type="system" pointSize="17"/>
                                         <nil key="textColor"/>
                                         <nil key="highlightedColor"/>
@@ -709,6 +726,7 @@
                     </view>
                     <connections>
                         <outlet property="StoryCollectionView" destination="cPI-pe-HWj" id="81S-zu-w6G"/>
+                        <outlet property="fontSizeLabel" destination="flU-4N-y1M" id="nAa-r4-Etd"/>
                         <outlet property="fontSizeStepper" destination="ZgY-V3-lpG" id="PPb-DP-5ne"/>
                         <outlet property="nextButton" destination="X0h-ky-cse" id="sfg-s0-kCI"/>
                         <outlet property="previousButton" destination="YZN-3q-jDE" id="Be7-Kr-c9X"/>

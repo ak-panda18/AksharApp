@@ -56,9 +56,10 @@ final class CheckpointHistoryManager {
         additionalTime: TimeInterval,
         storyManager: StoryManager
     ) {
+        // Only save the attempt history — do NOT mark checkpoint as completed here.
+        // Checkpoint completion is handled by CheckpointViewController.saveCheckpointCompletion()
+        // which is only called when the student actually passes (accuracy >= 80%).
         save(attempt: attempt)
-
-        storyManager.markCheckpointCompleted(storyId: storyId, checkpointText: checkpointText)
 
         let result = ReadingCheckpointResultData(
             id: UUID(),

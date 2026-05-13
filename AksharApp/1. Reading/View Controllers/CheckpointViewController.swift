@@ -5,6 +5,7 @@ import AVFoundation
 import Speech
 import AVKit
 import os.log
+import SwiftUI
 
 private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "AksharApp", category: "CheckpointVC")
 
@@ -28,6 +29,7 @@ class CheckpointViewController: UIViewController {
     @IBOutlet weak var backView: UIView!
     @IBOutlet weak var textView: UIView!
     @IBOutlet weak var dialogueView: UIView!
+    @IBOutlet weak var skipButton: UIButton!
 
     // MARK: - Properties
     var story: Story!
@@ -46,6 +48,9 @@ class CheckpointViewController: UIViewController {
     private var stopTimer: Timer?
     private var currentTranscript: String = ""
     private var attemptCount = 0
+    private var originalCheckpointText: String = ""
+    private var currentEvaluationText: String = ""
+    private var adaptiveRetryTexts: [String] = []
     private let maxAttempts  = 3
     private var hasPerfectScore = false
     private var isPaused        = false
@@ -64,6 +69,10 @@ class CheckpointViewController: UIViewController {
         super.viewDidLoad()
         verifyDependencies()
         playVideoInView()
+
+        originalCheckpointText = checkpointItem.text
+        currentEvaluationText = checkpointItem.text
+
         setupUI()
         updatePreviousScoresButtonState()
         updateInstructionText()
@@ -73,6 +82,9 @@ class CheckpointViewController: UIViewController {
         } else {
             showActiveState()
         }
+        
+        // Enable skip if user has attempted this checkpoint before (even in a previous session)
+        updateSkipButtonState()
     }
 
     override func viewDidLayoutSubviews() {
@@ -151,6 +163,62 @@ class CheckpointViewController: UIViewController {
     @IBAction func continueTapped(_ sender: UIButton) {
         goToNextStoryPage()
     }
+    
+    @IBAction func skipTapped(_ sender: UIButton) {
+        // Button is already disabled if no attempts, but double-check
+        guard hasAttemptedBefore() else {
+            presentCustomAlert(
+                title: "Wait!",
+                message: "You can't skip yet! You must try reading it at least once. You can do it!",
+                buttonText: "I'll Try!",
+                image: UIImage(named: "mascot_encouraging")
+            ) {}
+            return
+        }
+        
+        let skips = SkipManager.shared.availableSkips
+        if skips > 0 {
+            showSkipTicketAlert(skips: skips)
+        } else {
+            showNoTicketsAlert()
+        }
+    }
+    
+    private func showSkipTicketAlert(skips: Int) {
+        let alertView = SkipAlertView(
+            availableTickets: skips,
+            onUseTicket: { [weak self] in
+                // Dismiss the SwiftUI overlay
+                self?.dismiss(animated: true) {
+                    SkipManager.shared.useSkip()
+                    self?.saveCheckpointCompletion()
+                    self?.goToNextStoryPage()
+                }
+            },
+            onCancel: { [weak self] in
+                self?.dismiss(animated: true)
+            }
+        )
+        let hostVC = UIHostingController(rootView: alertView)
+        hostVC.view.backgroundColor = .clear
+        hostVC.modalPresentationStyle = .overCurrentContext
+        hostVC.modalTransitionStyle = .crossDissolve
+        present(hostVC, animated: true)
+    }
+    
+    private func showNoTicketsAlert() {
+        let alertView = NoTicketsAlertView(
+            onDismiss: { [weak self] in
+                self?.dismiss(animated: true)
+            }
+        )
+        let hostVC = UIHostingController(rootView: alertView)
+        hostVC.view.backgroundColor = .clear
+        hostVC.modalPresentationStyle = .overCurrentContext
+        hostVC.modalTransitionStyle = .crossDissolve
+        present(hostVC, animated: true)
+    }
+
 }
 
 // MARK: - Video Playback
@@ -198,14 +266,50 @@ private extension CheckpointViewController {
         dialogueView.layer.shadowRadius  = 10
         dialogueView.layer.masksToBounds = false
 
-        checkpointLabel.text         = checkpointItem.text
+        checkpointLabel.text = currentEvaluationText
         checkpointLabel.font         = fontForStory()
         checkpointLabel.numberOfLines = 0
 
         micButton.setImage(UIImage(systemName: "microphone.fill"), for: .normal)
 
-        previousScoresButton.layer.cornerRadius = previousScoresButton.frame.height / 2
-        previousScoresButton.clipsToBounds = true
+        previousScoresButton?.layer.cornerRadius = (previousScoresButton?.frame.height ?? 0) / 2
+        previousScoresButton?.clipsToBounds = true
+        configureSkipButtonStyle()
+        
+        // Initial Skip Button State: Disabled until first failure
+        skipButton?.isEnabled = false
+        skipButton?.alpha = 0.5
+    }
+
+    func configureSkipButtonStyle() {
+        let font = UIFont(name: "ArialRoundedMTBold", size: 21) ?? UIFont.systemFont(ofSize: 21)
+
+        skipButton?.configuration = nil
+        skipButton?.backgroundColor = UIColor(red: 0.4782714844, green: 0.3479003906, blue: 0.2358398587, alpha: 1)
+        skipButton?.setTitle(nil, for: .normal)
+        skipButton?.setTitle(nil, for: .disabled)
+        skipButton?.setAttributedTitle(
+            NSAttributedString(
+                string: "Skip",
+                attributes: [
+                    .font: font,
+                    .foregroundColor: UIColor.white
+                ]
+            ),
+            for: .normal
+        )
+        skipButton?.setAttributedTitle(
+            NSAttributedString(
+                string: "Skip",
+                attributes: [
+                    .font: font,
+                    .foregroundColor: UIColor.white.withAlphaComponent(0.65)
+                ]
+            ),
+            for: .disabled
+        )
+        skipButton?.layer.cornerRadius = 30
+        skipButton?.clipsToBounds = true
     }
 
     func updateInstructionText() {
@@ -236,19 +340,44 @@ private extension CheckpointViewController {
     func showActiveState() {
         hasPerfectScore  = false
         attemptCount     = 0
+        currentEvaluationText = originalCheckpointText // Reset to original paragraph
+        adaptiveRetryTexts.removeAll()
+        
         micButton.setImage(UIImage(systemName: "microphone.fill"), for: .normal)
         micButton.tintColor = .systemBlue
         checkpointLabel.textColor      = .label
         checkpointLabel.attributedText = nil
-        checkpointLabel.text           = checkpointItem.text
+        checkpointLabel.text = currentEvaluationText
+    }
+    
+    /// Check if user has ever attempted this checkpoint (current session OR past sessions)
+    func hasAttemptedBefore() -> Bool {
+        // Current session attempt
+        if attemptCount > 0 { return true }
+        // Past session attempts (stored in CoreData)
+        let title = story?.title ?? ""
+        let number = fallbackPageIndex + 1
+        let history = checkpointHistoryManager.getAttempts(for: title, checkpointNumber: number)
+        return !history.isEmpty
+    }
+    
+    func updateSkipButtonState() {
+        if hasAttemptedBefore() {
+            skipButton?.isEnabled = true
+            skipButton?.alpha = 1.0
+        } else {
+            skipButton?.isEnabled = false
+            skipButton?.alpha = 0.5
+        }
     }
 }
 
 // MARK: - Speech Recognition
 private extension CheckpointViewController {
     func startListening() {
+        micButton.isEnabled = true
         checkpointLabel.attributedText = nil
-        checkpointLabel.text           = checkpointItem.text
+        checkpointLabel.text = currentEvaluationText
         checkpointLabel.textColor      = .label
 
         hasPerfectScore    = false
@@ -339,17 +468,24 @@ private extension CheckpointViewController {
             return
         }
 
-        guard let referenceText = checkpointItem?.text else { return }
+        let referenceText = currentEvaluationText
 
         let targetWords = referenceText.gradableWords
         let spokenWords = normalizedSpoken.allWords
-        guard spokenWords.count >= 1 else { return }
 
-        let attributed = referenceText.colored(matching: spokenWords, font: checkpointLabel.font)
-        checkpointLabel.attributedText = attributed
+            // Only include words that were actually in the original text but not in the spoken text
+            let incorrectWords = targetWords.filter { target in
+                !spokenWords.contains { spoken in
+                    spoken.isPhoneticMatch(to: target.lowercased())
+                }
+            }
+            guard spokenWords.count >= 1 else { return }
+
+            let attributed = referenceText.colored(matching: spokenWords, font: checkpointLabel?.font ?? UIFont.systemFont(ofSize: 30))
+        checkpointLabel?.attributedText = attributed
 
         var correctCount = 0
-        attributed.enumerateAttribute(.foregroundColor, in: NSRange(location: 0, length: attributed.length)) { value, range, _ in
+        attributed.enumerateAttribute(NSAttributedString.Key.foregroundColor, in: NSRange(location: 0, length: attributed.length)) { value, range, _ in
             if let color = value as? UIColor, color == .systemGreen {
                 let fragment = (attributed.string as NSString).substring(with: range)
                 correctCount += fragment.gradableWords.count
@@ -369,15 +505,20 @@ private extension CheckpointViewController {
             hasPerfectScore = true
             attemptCount    = 0
             saveCheckpointCompletion()
-            micButton.setImage(UIImage(systemName: "checkmark"), for: .normal)
-            micButton.tintColor = .systemGreen
+            micButton?.setImage(UIImage(systemName: "checkmark"), for: .normal)
+            micButton?.tintColor = .systemGreen
+            
+            // Disable skip if they passed
+            skipButton?.isEnabled = false
+            skipButton?.alpha = 0.5
 
             if isLastCheckpoint() { showStoryCompletionAlert() } else { showCheckpointSuccessAlert() }
         } else {
             attemptCount += 1
             updateInstructionText()
-            micButton.setImage(UIImage(systemName: "arrow.trianglehead.clockwise"), for: .normal)
-            micButton.isEnabled = true
+            
+            // Enable skip button after first failure
+            updateSkipButtonState()
 
             if attemptCount >= maxAttempts {
                 presentCustomAlert(
@@ -385,20 +526,45 @@ private extension CheckpointViewController {
                     message: "Let's practice some more and try again!",
                     buttonText: "Continue",
                     image: UIImage(named: "mascot_encouraging")
-                ) { [weak self] in self?.goToFallbackPage() }
-            } else {
-                let remaining = maxAttempts - attemptCount
-                presentCustomAlert(
-                    title: "Keep Going!",
-                    message: "You read \(percent)% correctly.\nYou have \(remaining) more tries.",
-                    buttonText: "Try Again",
-                    image: UIImage(named: "mascot_encouraging")
-                ) { }
+                ) { [weak self] in
+                    self?.goToFallbackPage()
+                }
+                return
+            }
+
+            // Adaptation Logic: Generate new sentence for 2nd and 3rd tries
+            Task {
+                do {
+                    print("DEBUG: Incorrect words detected: \(incorrectWords)")
+                    // Feed incorrect words from the PREVIOUS try to generate NEW text
+                    let newSentence = try await AdaptiveSentenceGenerator.shared.generateSentence(from: incorrectWords)
+                    print("DEBUG: AI generated sentence: \(newSentence)")
+
+                    await MainActor.run {
+                        if self.presentedViewController != nil {
+                            self.dismiss(animated: true) {
+                                self.showAdaptiveAlert(newSentence: newSentence)
+                            }
+                        } else {
+                            self.showAdaptiveAlert(newSentence: newSentence)
+                        }
+                    }
+                } catch {
+                    await MainActor.run {
+                        self.presentCustomAlert(
+                            title: "Try Again",
+                            message: "Let's try once more!",
+                            buttonText: "Retry",
+                            image: UIImage(named: "mascot_encouraging")
+                        ) { [weak self] in
+                            self?.micButton.isEnabled = true
+                        }
+                    }
+                }
             }
         }
     }
 }
-
 // MARK: - Checkpoint Persistence
 private extension CheckpointViewController {
 
@@ -408,6 +574,8 @@ private extension CheckpointViewController {
 
     func saveCheckpointCompletion() {
         storyManager.markCheckpointCompleted(storyId: story.id, checkpointText: checkpointItem.text)
+        let pageIndex = isLastCheckpoint() ? story.content.count - 1 : nextPageIndex
+        storyManager.saveProgress(storyId: story.id, pageIndex: pageIndex, didComplete: isLastCheckpoint() ? true : nil)
     }
 
     func saveAttempt(accuracy: Int, spokenWords: [String]) {
@@ -425,6 +593,7 @@ private extension CheckpointViewController {
             timestamp: Date()
         )
 
+        // Attempt Firebase/Firestore save
         checkpointHistoryManager.completeCheckpoint(
             attempt: attempt,
             accuracy: Double(accuracy) / 100.0,
@@ -436,6 +605,10 @@ private extension CheckpointViewController {
             additionalTime: additionalTime,
             storyManager: storyManager
         )
+        
+        // Backup: Local Save (in case Firebase has permission issues)
+        let localKey = "local_checkpoint_progress_\(story.id)"
+        UserDefaults.standard.set(true, forKey: localKey)
 
         updatePreviousScoresButtonState()
     }
@@ -580,6 +753,22 @@ private extension CheckpointViewController {
         case "level 2": return UIFont(name: "TrebuchetMS",       size: 30) ?? UIFont.systemFont(ofSize: 30)
         case "level 3": return UIFont(name: "TimesNewRomanPSMT", size: 30) ?? UIFont.systemFont(ofSize: 30)
         default:        return UIFont.systemFont(ofSize: 30)
+        }
+    }
+
+    func showAdaptiveAlert(newSentence: String) {
+        self.currentEvaluationText = newSentence
+        self.checkpointLabel.text = newSentence
+        self.micButton.setImage(UIImage(systemName: "microphone.fill"), for: .normal)
+        self.micButton.isEnabled = true
+
+        self.presentCustomAlert(
+            title: "Try this one!",
+            message: "I made a special sentence for you with words you missed. Give it a try!",
+            buttonText: "Try Again",
+            image: UIImage(named: "mascot_encouraging")
+        ) { 
+            // Wait for mic tap
         }
     }
 }
