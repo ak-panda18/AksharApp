@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>970855744202-ncusahjiv4fm03iksmek2u22mq6cu4vh.apps.googleusercontent.com</string>
+	<string>970855744202-6kvpisj2rvbt60u6e8lj7h2qa1q75onr.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.970855744202-ncusahjiv4fm03iksmek2u22mq6cu4vh</string>
+	<string>com.googleusercontent.apps.970855744202-6kvpisj2rvbt60u6e8lj7h2qa1q75onr</string>
 	<key>API_KEY</key>
-	<string>AIzaSyCk-boqX8tzB3EBmiqRoMnUEfKubznRg-0</string>
+	<string>AIzaSyAIKEnPI8JwviId0gfLqeRBu_mRU9EwjQU</string>
 	<key>GCM_SENDER_ID</key>
 	<string>970855744202</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>iOSAppDev.AksharApp1.0.1.0.1</string>
+	<string>AksharrApp</string>
 	<key>PROJECT_ID</key>
 	<string>akshar-1405</string>
 	<key>STORAGE_BUCKET</key>
@@ -29,6 +29,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:970855744202:ios:ac8d41f264fd5bd95e6a33</string>
+	<string>1:970855744202:ios:b65763b94b7530dc5e6a33</string>
 </dict>
 </plist>
