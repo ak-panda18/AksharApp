@@ -35,7 +35,6 @@ class Profile_ViewController: UIViewController,
     @IBOutlet weak var streakNumber: UILabel!
 
     // MARK: - Outlets: Header
-    @IBOutlet weak var analyticsButton: UIButton!
     @IBOutlet weak var profileImage: UIImageView!
     @IBOutlet weak var profileName: UILabel!
 
@@ -100,6 +99,7 @@ class Profile_ViewController: UIViewController,
         applyCardStyles()
         setupStreakViews()
         setupProfileImageTap()
+        setupProgressStatisticsRow()
         loadProfileData()
         updateStreakCard()
         fetchStreakFromFirestore()       // merges remote streak dates in the background
@@ -662,6 +662,126 @@ class Profile_ViewController: UIViewController,
     private func removeCameraOverlay() {
         profileImage.viewWithTag(9001)?.removeFromSuperview()
         profileImage.backgroundColor = .clear
+    }
+
+    // MARK: - Progress Statistics Row
+    /// Builds the "Progress Statistics" card matching the layout of the
+    /// Parental Controls / Reminders cards: title row on top, content card below.
+    private func setupProgressStatisticsRow() {
+        // Walk up: logOutButton → button-stack → LogOut-and-Delete view → Right View
+        guard let logOutDeleteView = logOutButton.superview?.superview,
+              let rightView = logOutDeleteView.superview else { return }
+
+        // ════════════════════════════════════════════════════════════
+        // 1. TITLE LABEL  — matches "Parental Controls" / "Reminders"
+        //    (system 22, same dark-grey as other section titles)
+        // ════════════════════════════════════════════════════════════
+        let titleLabel = UILabel()
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        titleLabel.text      = "Progress Statistics"
+        titleLabel.font      = .systemFont(ofSize: 22)
+        titleLabel.textColor = UIColor(white: 0.333, alpha: 1.0)
+
+        // ════════════════════════════════════════════════════════════
+        // 2. CONTENT CARD — rounded sub-card like the Analytics Lock row
+        // ════════════════════════════════════════════════════════════
+        let contentCard = UIView()
+        contentCard.translatesAutoresizingMaskIntoConstraints = false
+        contentCard.backgroundColor    = .systemBackground
+        contentCard.layer.cornerRadius = 27
+        contentCard.layer.masksToBounds = true
+        contentCard.layer.borderColor   = UIColor.black.withAlphaComponent(0.1).cgColor
+        contentCard.layer.borderWidth   = 1.0
+        contentCard.isUserInteractionEnabled = true
+
+        // ── Content text — matches "Analytics Lock" style (system 22) ──
+        let contentLabel = UILabel()
+        contentLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentLabel.text      = "View Analytics"
+        contentLabel.font      = .systemFont(ofSize: 22)
+        contentLabel.textColor = .label
+
+        // ── Chevron ──
+        let chevron = UIImageView()
+        chevron.translatesAutoresizingMaskIntoConstraints = false
+        chevron.image       = UIImage(systemName: "chevron.right")
+        chevron.tintColor   = .tertiaryLabel
+        chevron.contentMode = .scaleAspectFit
+
+        // ── Row: label + chevron ──
+        let rowStack = UIStackView(arrangedSubviews: [contentLabel, chevron])
+        rowStack.axis      = .horizontal
+        rowStack.alignment = .center
+        rowStack.spacing   = 10
+        rowStack.translatesAutoresizingMaskIntoConstraints = false
+        contentCard.addSubview(rowStack)
+
+        // ════════════════════════════════════════════════════════════
+        // 3. OUTER WRAPPER — title + content stacked vertically
+        // ════════════════════════════════════════════════════════════
+        let outerStack = UIStackView(arrangedSubviews: [titleLabel, contentCard])
+        outerStack.axis    = .vertical
+        outerStack.spacing = 8
+        outerStack.translatesAutoresizingMaskIntoConstraints = false
+        rightView.addSubview(outerStack)
+
+        // ── Constraints ──
+        NSLayoutConstraint.activate([
+            // Chevron size
+            chevron.widthAnchor.constraint(equalToConstant: 10),
+            chevron.heightAnchor.constraint(equalToConstant: 16),
+            // Row insets inside the content card (matches Analytics Lock padding)
+            rowStack.leadingAnchor.constraint(equalTo: contentCard.leadingAnchor, constant: 15),
+            rowStack.trailingAnchor.constraint(equalTo: contentCard.trailingAnchor, constant: -15),
+            rowStack.topAnchor.constraint(equalTo: contentCard.topAnchor, constant: 15),
+            rowStack.bottomAnchor.constraint(equalTo: contentCard.bottomAnchor, constant: -15),
+            // Content card minimum height
+            contentCard.heightAnchor.constraint(greaterThanOrEqualToConstant: 70),
+            // Outer stack matches the column width
+            outerStack.leadingAnchor.constraint(equalTo: logOutDeleteView.leadingAnchor),
+            outerStack.trailingAnchor.constraint(equalTo: logOutDeleteView.trailingAnchor),
+        ])
+
+        // Reposition: outer stack sits below the Parental/Reminders stack,
+        // LogOut view sits below the outer stack.
+        for constraint in rightView.constraints {
+            if constraint.firstItem === logOutDeleteView,
+               constraint.firstAttribute == .top {
+                constraint.isActive = false
+                break
+            }
+        }
+
+        if let parentalStack = rightView.subviews.first(where: { $0 is UIStackView && $0 !== outerStack }) {
+            NSLayoutConstraint.activate([
+                outerStack.topAnchor.constraint(equalTo: parentalStack.bottomAnchor, constant: 12),
+                logOutDeleteView.topAnchor.constraint(equalTo: outerStack.bottomAnchor, constant: 12),
+            ])
+        }
+
+        // ── Tap gesture — reuses the same Analytics flow (PIN-gated) ──
+        let tap = UITapGestureRecognizer(target: self, action: #selector(progressStatisticsTapped))
+        contentCard.addGestureRecognizer(tap)
+
+        // ── Make Log Out / Delete Account buttons bigger ──
+        for btn in [logOutButton, deleteAccountButton] {
+            guard let btn else { continue }
+            // Remove any existing storyboard height constraints
+            for c in btn.constraints where c.firstAttribute == .height {
+                c.isActive = false
+            }
+            btn.heightAnchor.constraint(equalToConstant: 50).isActive = true
+            btn.titleLabel?.font = .systemFont(ofSize: 20, weight: .semibold)
+        }
+    }
+
+    @objc private func progressStatisticsTapped() {
+        if UserDefaults.standard.string(forKey: pinKey) != nil {
+            pendingAnalyticsAccess = true
+            performSegue(withIdentifier: "showVerifyPIN", sender: self)
+        } else {
+            pushAnalyticsVC()
+        }
     }
 
     // MARK: - Navigation
