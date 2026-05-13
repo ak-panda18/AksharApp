@@ -1540,17 +1540,7 @@
                             <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="oNd-nR-qi2">
                                 <rect key="frame" x="50" y="408" width="710" height="208"/>
                                 <subviews>
-                                    <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="uAN-j1-0IW">
-                                        <rect key="frame" x="536" y="8" width="166" height="34.5"/>
-                                        <state key="normal" title="Button"/>
-                                        <buttonConfiguration key="configuration" style="filled" title="Progress Statistics" cornerStyle="capsule">
-                                            <color key="baseForegroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
-                                            <color key="baseBackgroundColor" systemColor="tintColor"/>
-                                        </buttonConfiguration>
-                                        <connections>
-                                            <action selector="goToAnalyticsTapped:" destination="gCx-7T-NPg" eventType="touchUpInside" id="q0R-tH-81z"/>
-                                        </connections>
-                                    </button>
+
                                     <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="image 141" translatesAutoresizingMaskIntoConstraints="NO" id="zL3-k3-CqG">
                                         <rect key="frame" x="16" y="16" width="95" height="95"/>
                                         <constraints>
@@ -1742,7 +1732,7 @@
                                     <constraint firstItem="zL3-k3-CqG" firstAttribute="top" secondItem="Bd1-by-pAs" secondAttribute="top" constant="16" id="24i-wS-rak"/>
                                     <constraint firstItem="GDB-s6-CUz" firstAttribute="leading" secondItem="Bd1-by-pAs" secondAttribute="leading" constant="50" id="ASv-o6-CEK"/>
                                     <constraint firstItem="Bd1-by-pAs" firstAttribute="bottom" secondItem="GDB-s6-CUz" secondAttribute="bottom" constant="30" id="BW1-pv-i8W"/>
-                                    <constraint firstItem="Bd1-by-pAs" firstAttribute="trailing" secondItem="uAN-j1-0IW" secondAttribute="trailing" constant="8" id="EUu-yh-uYP"/>
+
                                     <constraint firstItem="llb-mM-iwx" firstAttribute="leading" secondItem="zL3-k3-CqG" secondAttribute="trailing" constant="16" id="EyF-f4-jzg"/>
                                     <constraint firstItem="GDB-s6-CUz" firstAttribute="top" secondItem="zL3-k3-CqG" secondAttribute="bottom" constant="10" id="HIb-AL-LKa"/>
                                     <constraint firstItem="h2k-O1-YdF" firstAttribute="leading" secondItem="llb-mM-iwx" secondAttribute="trailing" constant="8" id="KVt-QR-ffv"/>
@@ -1750,7 +1740,7 @@
                                     <constraint firstItem="llb-mM-iwx" firstAttribute="top" secondItem="Bd1-by-pAs" secondAttribute="top" constant="35" id="XSd-Ca-fIV"/>
                                     <constraint firstItem="zL3-k3-CqG" firstAttribute="leading" secondItem="Bd1-by-pAs" secondAttribute="leading" constant="16" id="XXu-lC-Hwq"/>
                                     <constraint firstItem="Bd1-by-pAs" firstAttribute="trailing" secondItem="GDB-s6-CUz" secondAttribute="trailing" constant="50" id="a89-Sa-j8e"/>
-                                    <constraint firstItem="uAN-j1-0IW" firstAttribute="top" secondItem="Bd1-by-pAs" secondAttribute="top" constant="8" id="yVy-6u-ngD"/>
+
                                 </constraints>
                                 <userDefinedRuntimeAttributes>
                                     <userDefinedRuntimeAttribute type="boolean" keyPath="layer.clipToBounds" value="YES"/>
@@ -2314,7 +2304,7 @@
                     <connections>
                         <outlet property="ParentalControlCard" destination="tb5-kh-T5A" id="1b4-Rx-BE9"/>
                         <outlet property="age" destination="LMg-mk-YF0" id="n2M-7L-z22"/>
-                        <outlet property="analyticsButton" destination="uAN-j1-0IW" id="3lF-iY-Fyp"/>
+
                         <outlet property="deleteAccountButton" destination="IL1-af-TFu" id="5sd-Rm-0PB"/>
                         <outlet property="editProfileButton" destination="Z8U-sX-J6p" id="lga-SG-eAq"/>
                         <outlet property="firstName" destination="jFM-Tu-2GH" id="SyC-HW-Nbl"/>
