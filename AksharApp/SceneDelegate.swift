@@ -24,14 +24,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             showHome(container: c)
         } else {
             // TODO: Uncomment the condition below to only show onboarding if the user has never seen it.
-            // if UserDefaults.standard.bool(forKey: "hasSeenOnboarding") {
-            //     showAuth(container: c)
-            // } else {
-            //     showOnboarding()
-            // }
+             if UserDefaults.standard.bool(forKey: "hasSeenOnboarding") {
+                 showAuth(container: c)
+             } else {
+                 showOnboarding()
+             }
 
             // For now, always show onboarding:
-            showOnboarding()
+            //showOnboarding()
         }
     }
 

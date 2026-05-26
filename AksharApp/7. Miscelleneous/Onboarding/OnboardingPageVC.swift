@@ -30,10 +30,10 @@ class OnboardingPageVC: UIPageViewController, UIPageViewControllerDataSource, UI
         super.viewDidLoad()
 
         // TODO: Uncomment the condition below to skip onboarding if the user has already seen it.
-        // if UserDefaults.standard.bool(forKey: "hasSeenOnboarding") {
-        //     navigateToSignUp()
-        //     return
-        // }
+         if UserDefaults.standard.bool(forKey: "hasSeenOnboarding") {
+             navigateToSignUp()
+             return
+         }
 
         dataSource = self
         delegate = self
