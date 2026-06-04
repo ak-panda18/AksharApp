@@ -5,8 +5,6 @@ private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "AksharAp
 
 final class BundleDataLoader {
 
-    static let shared = BundleDataLoader()
-
     init() {}
     func load<T: Decodable>(_ filename: String, as type: T.Type) -> T {
         guard let url = Bundle.main.url(forResource: filename, withExtension: "json") else {

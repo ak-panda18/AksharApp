@@ -24,14 +24,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             showHome(container: c)
         } else {
             // TODO: Uncomment the condition below to only show onboarding if the user has never seen it.
-             if UserDefaults.standard.bool(forKey: "hasSeenOnboarding") {
-                 showAuth(container: c)
-             } else {
-                 showOnboarding()
-             }
+            // if UserDefaults.standard.bool(forKey: "hasSeenOnboarding") {
+            //     showAuth(container: c)
+            // } else {
+            //     showOnboarding()
+            // }
 
             // For now, always show onboarding:
-            //showOnboarding()
+            showOnboarding()
         }
     }
 
@@ -49,7 +49,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let sb = UIStoryboard(name: "Main", bundle: nil)
         guard let homeNav = sb.instantiateViewController(
             withIdentifier: "HomeNavController") as? UINavigationController,
-              let homeVC = homeNav.viewControllers.first as? HomeViewController
+              let homeVC = homeNav.viewControllers.first as? LearningPathHostVC
         else { return }
         c.inject(into: homeVC)
         window?.rootViewController = homeNav
@@ -103,7 +103,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let sb = UIStoryboard(name: "Main", bundle: nil)
         guard let homeNav = sb.instantiateViewController(
             withIdentifier: "HomeNavController") as? UINavigationController,
-              let homeVC = homeNav.viewControllers.first as? HomeViewController
+              let homeVC = homeNav.viewControllers.first as? LearningPathHostVC
         else { return }
         c.inject(into: homeVC)
         window?.rootViewController = homeNav
@@ -125,6 +125,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func sceneDidDisconnect(_ scene: UIScene) {}
 
     func sceneDidBecomeActive(_ scene: UIScene) {
+        container?.streakStore.recordToday()
         guard let uid = container?.childManager.currentChild.id?.uuidString else { return }
         container?.profileStore.recordAppOpen(uid: uid)
     }

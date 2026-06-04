@@ -50,10 +50,17 @@ final class AppDependencyContainer {
     // MARK: - Sync
     let syncService: FirestoreSyncService
 
+    // MARK: - Guided Learning Path
+    let learningPathEngine: LearningPathEngine
+    let sessionOrchestrator: SessionOrchestrator
+    
+    // MARK: - Stores
+    let streakStore: StreakStore
+    
     // MARK: - Init
     init() {
         coreDataStack    = CoreDataStack()
-        bundleDataLoader = BundleDataLoader.shared
+        bundleDataLoader = BundleDataLoader()
 
         childManager = ChildManager(coreDataStack: coreDataStack)
 
@@ -91,6 +98,11 @@ final class AppDependencyContainer {
         speechRecognitionManager = SpeechRecognitionManager()
         gameTimerManager         = GameTimerManager(seconds: 30)
 
+        learningPathEngine = LearningPathEngine(analyticsStore: analyticsStore)
+        sessionOrchestrator = SessionOrchestrator(engine: learningPathEngine)
+        
+        streakStore = StreakStore()
+        
         // Sync service wires together all stores that need cross-device persistence.
         syncService = FirestoreSyncService(
             analyticsStore:           analyticsStore,
@@ -110,20 +122,21 @@ final class AppDependencyContainer {
 
     // MARK: - Injection
 
-    func inject(into homeVC: HomeViewController) {
-        homeVC.storyManager             = storyManager
-        homeVC.writingGameplayManager   = writingGameplayManager
-        homeVC.analyticsStore           = analyticsStore
-        homeVC.childManager             = childManager
-        homeVC.checkpointHistoryManager = checkpointHistoryManager
-        homeVC.phonicsFlowManager       = phonicsFlowManager
-        homeVC.phonicsGameplayManager   = phonicsGameplayManager
-        homeVC.bundleDataLoader         = bundleDataLoader
-        homeVC.ocrManager               = ocrManager
-        homeVC.speechManager            = speechManager
-        homeVC.speechRecognitionManager = speechRecognitionManager
-        homeVC.gameTimerManager         = gameTimerManager
-        homeVC.profileStore             = profileStore
+    func inject(into vc: LearningPathHostVC) {
+        vc.orchestrator             = sessionOrchestrator
+        vc.storyManager             = storyManager
+        vc.writingGameplayManager   = writingGameplayManager
+        vc.analyticsStore           = analyticsStore
+        vc.childManager             = childManager
+        vc.checkpointHistoryManager = checkpointHistoryManager
+        vc.phonicsFlowManager       = phonicsFlowManager
+        vc.phonicsGameplayManager   = phonicsGameplayManager
+        vc.bundleDataLoader         = bundleDataLoader
+        vc.ocrManager               = ocrManager
+        vc.speechManager            = speechManager
+        vc.speechRecognitionManager = speechRecognitionManager
+        vc.gameTimerManager         = gameTimerManager
+        vc.profileStore             = profileStore
     }
 
     func inject(into vc: AnalyticsViewController) {

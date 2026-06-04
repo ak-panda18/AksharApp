@@ -208,6 +208,9 @@ class SixLetterTraceViewController: BaseTraceViewController, UICollectionViewDat
         nextChevronButton.isEnabled = true
         nextChevronButton.alpha = 1.0
         isTracingLocked = true
+        
+        // Guided Learning Path
+        orchestrator?.recordLetterCompleted()
     }
 
     // MARK: - Actions

@@ -28,6 +28,11 @@ class WritingPreviewViewController: UIViewController {
 
     // MARK: - Injected
     var writingGameplayManager: WritingGameplayManager!
+    
+    // Guided Learning Path
+    weak var sessionDelegate: AnyObject?
+    var orchestrator: SessionOrchestrator?
+
 
     // MARK: - Lifecycle
     private func verifyDependencies() {
@@ -129,6 +134,7 @@ class WritingPreviewViewController: UIViewController {
             vc.contentType            = contentType
             vc.currentIndex           = index
             vc.writingGameplayManager = writingGameplayManager
+            vc.orchestrator           = orchestrator
             stack.append(vc)
 
         } else {
@@ -150,6 +156,7 @@ class WritingPreviewViewController: UIViewController {
 
                 if let wordVC = sb.instantiateViewController(withIdentifier: identifier) as? BaseTraceViewController {
                     wordVC.writingGameplayManager = writingGameplayManager
+                    wordVC.orchestrator = orchestrator
                     if let one = wordVC as? OneWordTraceViewController {
                         one.currentWordIndex = index; one.selectedCategory = categoryEnum
                     } else if let two = wordVC as? TwoWordTraceViewController {
@@ -189,6 +196,7 @@ class WritingPreviewViewController: UIViewController {
         vc.contentType            = contentType
         vc.currentIndex           = index
         vc.writingGameplayManager = writingGameplayManager
+        vc.orchestrator           = orchestrator
         navigationController?.pushViewController(vc, animated: true)
     }
 }

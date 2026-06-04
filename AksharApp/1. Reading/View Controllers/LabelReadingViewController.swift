@@ -4,6 +4,11 @@ import AVFoundation
 class LabelReadingViewController: UIViewController {
 
     var readingSession: ReadingSessionData?
+    
+    // Guided Learning Path
+    weak var sessionDelegate: AnyObject?
+    var orchestrator: SessionOrchestrator?
+
 
     // MARK: - Injected
     var storyManager: StoryManager!
@@ -404,6 +409,9 @@ private extension LabelReadingViewController {
         if currentPage.checkAfter && !isCurrentCheckpointCompleted() {
             if navigateToCheckpoint(nextIndex: newIndex) { return }
         }
+        
+        if offset > 0 { orchestrator?.recordReadingRoundCompleted() }
+
         if newIndex >= totalCount {
             storyManager.saveProgress(storyId: story.id, pageIndex: currentIndex, didComplete: true)
             popToReadingPreview(); return
