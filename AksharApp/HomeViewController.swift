@@ -27,6 +27,7 @@ class HomeViewController: UIViewController {
     var speechRecognitionManager: SpeechRecognitionManager!
     var gameTimerManager: GameTimerManager!
     var profileStore: ProfileStore!
+    var skipManager: SkipManager!
 
     // MARK: - Lifecycle
     private func verifyDependencies() {
@@ -55,6 +56,19 @@ class HomeViewController: UIViewController {
             name: .profileImageDidChange,
             object: nil
         )
+
+        // iCloud Sync Notification Observers
+        let nc = NotificationCenter.default
+        nc.addObserver(self, selector: #selector(iCloudDataDidChange), name: .coreDataDidSyncFromCloud, object: nil)
+        nc.addObserver(self, selector: #selector(iCloudDataDidChange), name: .streakStoreNeedsReload, object: nil)
+        nc.addObserver(self, selector: #selector(iCloudDataDidChange), name: .skipManagerNeedsReload, object: nil)
+        nc.addObserver(self, selector: #selector(iCloudDataDidChange), name: .phonicsFlowNeedsReload, object: nil)
+        nc.addObserver(self, selector: #selector(iCloudDataDidChange), name: .profileStoreNeedsReload, object: nil)
+    }
+
+    @objc private func iCloudDataDidChange() {
+        updateDashboardState()
+        updateProfileButtonImage()
     }
 
     deinit {
@@ -180,6 +194,7 @@ class HomeViewController: UIViewController {
         previewVC.storyManager             = storyManager
         previewVC.childManager             = childManager
         previewVC.checkpointHistoryManager = checkpointHistoryManager
+        previewVC.skipManager              = skipManager
 
         let pageContent = story.content[pageIndex]
         let targetVC: UIViewController
@@ -194,6 +209,7 @@ class HomeViewController: UIViewController {
             vc.storyManager             = storyManager
             vc.childManager             = childManager
             vc.checkpointHistoryManager = checkpointHistoryManager
+            vc.skipManager              = skipManager
             targetVC = vc
         } else {
             guard let vc = sb.instantiateViewController(withIdentifier: "LabelReadingVC")
@@ -204,6 +220,7 @@ class HomeViewController: UIViewController {
             vc.storyManager             = storyManager
             vc.childManager             = childManager
             vc.checkpointHistoryManager = checkpointHistoryManager
+            vc.skipManager              = skipManager
             targetVC = vc
         }
         navigationController?.setViewControllers([self, previewVC, targetVC], animated: true)
@@ -254,6 +271,7 @@ class HomeViewController: UIViewController {
                 vc.storyManager             = storyManager
                 vc.childManager             = childManager
                 vc.checkpointHistoryManager = checkpointHistoryManager
+                vc.skipManager              = skipManager
             }
         } else if segue.identifier == "writingSegue" {
             UserDefaults.standard.set("writing", forKey: "LastActiveModule")
@@ -275,6 +293,7 @@ class HomeViewController: UIViewController {
                 vc.storyManager             = storyManager
                 vc.childManager             = childManager
                 vc.checkpointHistoryManager = checkpointHistoryManager
+                vc.skipManager              = skipManager
             }
         }
     }

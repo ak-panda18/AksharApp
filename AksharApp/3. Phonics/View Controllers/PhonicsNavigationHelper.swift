@@ -12,6 +12,10 @@ extension UIViewController {
         }
     }
     func goHomeFromPhonics() {
+        // popToRootViewController returns to LearningPathHostVC when guided mode is on.
+        // LearningPathHostVC.viewWillAppear() automatically resets the orchestrator
+        // phase from .inProgress → .previewing so the guided flow resumes correctly.
         navigationController?.popToRootViewController(animated: true)
     }
 }
+

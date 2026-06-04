@@ -34,6 +34,17 @@ class FluencyDrillsViewController: UIViewController,
     private var isRecording = false
     private var didScoreCurrentWord = false
 
+    // Mic hint label shown to the right of the mic button
+    private let micHintLabel: UILabel = {
+        let lbl = UILabel()
+        lbl.text = "Tap and start speaking!"
+        lbl.font = UIFont(name: "ArialRoundedMTBold", size: 17) ?? UIFont.boldSystemFont(ofSize: 17)
+        lbl.textColor = UIColor(red: 0.478, green: 0.349, blue: 0.235, alpha: 1)
+        lbl.textAlignment = .left
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        return lbl
+    }()
+
     // MARK: - Lifecycle
     private func verifyDependencies() {
         assert(phonicsGameplayManager != nil, "phonicsGameplayManager was not injected into \(type(of: self))")
@@ -92,6 +103,15 @@ class FluencyDrillsViewController: UIViewController,
         timerLabel.text     = "30 seconds remaining"
         scoreLabel.isHidden = true
         nextButton.isHidden = true
+
+        // Add hint label to the right of the mic button
+        if micHintLabel.superview == nil {
+            view.addSubview(micHintLabel)
+            NSLayoutConstraint.activate([
+                micHintLabel.leadingAnchor.constraint(equalTo: micButton.trailingAnchor, constant: 14),
+                micHintLabel.centerYAnchor.constraint(equalTo: micButton.centerYAnchor)
+            ])
+        }
     }
 
     func styleSubmitButton() {
@@ -149,10 +169,24 @@ class FluencyDrillsViewController: UIViewController,
     }
 
     func updateMicIcon() {
-        micButton.setImage(
-            UIImage(systemName: isRecording ? "stop.fill" : "mic.fill"),
-            for: .normal
-        )
+        // Always keep the mic icon — the pulse signals listening state
+        micButton.setImage(UIImage(systemName: "mic.fill"), for: .normal)
+    }
+
+    // MARK: - Pulse Animation
+    private func startPulseAnimation() {
+        let pulse = CABasicAnimation(keyPath: "transform.scale")
+        pulse.fromValue = 1.0
+        pulse.toValue   = 1.05
+        pulse.duration  = 0.85
+        pulse.autoreverses  = true
+        pulse.repeatCount   = .infinity
+        pulse.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        micButton.layer.add(pulse, forKey: "pulseAnimation")
+    }
+
+    private func stopPulseAnimation() {
+        micButton.layer.removeAnimation(forKey: "pulseAnimation")
     }
 
     // MARK: - Actions
@@ -206,6 +240,10 @@ class FluencyDrillsViewController: UIViewController,
         speechRecognitionManager.startListening()
         isRecording = true
         updateMicIcon()
+        // Hide hint label, start pulse, and lock the button while listening
+        micHintLabel.isHidden = true
+        micButton.isEnabled = false
+        startPulseAnimation()
     }
 
     func restartRecognition() {
@@ -219,6 +257,10 @@ class FluencyDrillsViewController: UIViewController,
         speechRecognitionManager.stopListening()
         isRecording = false
         updateMicIcon()
+        // Restore hint label, stop pulse, and unlock the button
+        stopPulseAnimation()
+        micHintLabel.isHidden = false
+        micButton.isEnabled = true
     }
 
     // MARK: - Round End

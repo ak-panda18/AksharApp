@@ -51,16 +51,16 @@ final class ProfileStore {
             let hour    = data["reminderHour"]    as? Int    ?? 17
             let minute  = data["reminderMinute"]  as? Int    ?? 0
 
-            UserDefaults.standard.set(enabled, forKey: self.enabledKey(uid))
+            iCloudKeyValueStore.shared.set(enabled, forKey: self.enabledKey(uid))
             if let encoded = try? JSONEncoder().encode(days) {
-                UserDefaults.standard.set(encoded, forKey: self.daysKey(uid))
+                iCloudKeyValueStore.shared.set(encoded, forKey: self.daysKey(uid))
             }
-            UserDefaults.standard.set(hour,   forKey: self.hourKey(uid))
-            UserDefaults.standard.set(minute, forKey: self.minuteKey(uid))
+            iCloudKeyValueStore.shared.set(hour,   forKey: self.hourKey(uid))
+            iCloudKeyValueStore.shared.set(minute, forKey: self.minuteKey(uid))
 
             if let ts = data["lastOpenDate"] as? Timestamp {
                 if let encoded = try? JSONEncoder().encode(ts.dateValue()) {
-                    UserDefaults.standard.set(encoded, forKey: self.lastOpenKey(uid))
+                    iCloudKeyValueStore.shared.set(encoded, forKey: self.lastOpenKey(uid))
                 }
             }
 
@@ -72,12 +72,12 @@ final class ProfileStore {
 
     // MARK: - Reminder Enabled
     func isReminderEnabled(uid: String) -> Bool {
-        guard UserDefaults.standard.object(forKey: enabledKey(uid)) != nil else { return true }
-        return UserDefaults.standard.bool(forKey: enabledKey(uid))
+        guard iCloudKeyValueStore.shared.object(forKey: enabledKey(uid)) != nil else { return true }
+        return iCloudKeyValueStore.shared.bool(forKey: enabledKey(uid))
     }
 
     func setReminderEnabled(_ enabled: Bool, uid: String) {
-        UserDefaults.standard.set(enabled, forKey: enabledKey(uid))
+        iCloudKeyValueStore.shared.set(enabled, forKey: enabledKey(uid))
         settingsRef(uid: uid).setData(["reminderEnabled": enabled], merge: true) { error in
             if let error { logger.error("ProfileStore: setReminderEnabled failed – \(error)") }
         }
@@ -85,7 +85,7 @@ final class ProfileStore {
 
     // MARK: - Reminder Days
     func reminderDays(uid: String) -> [Bool] {
-        guard let data = UserDefaults.standard.data(forKey: daysKey(uid)),
+        guard let data = iCloudKeyValueStore.shared.data(forKey: daysKey(uid)),
               let days = try? JSONDecoder().decode([Bool].self, from: data),
               days.count == 7
         else { return Array(repeating: true, count: 7) }
@@ -94,7 +94,7 @@ final class ProfileStore {
 
     func setReminderDays(_ days: [Bool], uid: String) {
         if let data = try? JSONEncoder().encode(days) {
-            UserDefaults.standard.set(data, forKey: daysKey(uid))
+            iCloudKeyValueStore.shared.set(data, forKey: daysKey(uid))
         }
         settingsRef(uid: uid).setData(["reminderDays": days], merge: true) { error in
             if let error { logger.error("ProfileStore: setReminderDays failed – \(error)") }
@@ -103,17 +103,17 @@ final class ProfileStore {
 
     // MARK: - Reminder Time
     func reminderHour(uid: String) -> Int {
-        let v = UserDefaults.standard.integer(forKey: hourKey(uid))
+        let v = iCloudKeyValueStore.shared.integer(forKey: hourKey(uid))
         return v == 0 ? 17 : v
     }
 
     func reminderMinute(uid: String) -> Int {
-        UserDefaults.standard.integer(forKey: minuteKey(uid))
+        iCloudKeyValueStore.shared.integer(forKey: minuteKey(uid))
     }
 
     func setReminderTime(hour: Int, minute: Int, uid: String) {
-        UserDefaults.standard.set(hour,   forKey: hourKey(uid))
-        UserDefaults.standard.set(minute, forKey: minuteKey(uid))
+        iCloudKeyValueStore.shared.set(hour,   forKey: hourKey(uid))
+        iCloudKeyValueStore.shared.set(minute, forKey: minuteKey(uid))
         settingsRef(uid: uid).setData(
             ["reminderHour": hour, "reminderMinute": minute],
             merge: true
@@ -126,7 +126,7 @@ final class ProfileStore {
     func recordAppOpen(uid: String) {
         let today = Calendar.current.startOfDay(for: Date())
         if let data = try? JSONEncoder().encode(today) {
-            UserDefaults.standard.set(data, forKey: lastOpenKey(uid))
+            iCloudKeyValueStore.shared.set(data, forKey: lastOpenKey(uid))
         }
         settingsRef(uid: uid).setData(
             ["lastOpenDate": Timestamp(date: today)],
@@ -137,7 +137,7 @@ final class ProfileStore {
     }
 
     func wasAppOpenedToday(uid: String) -> Bool {
-        guard let data = UserDefaults.standard.data(forKey: lastOpenKey(uid)),
+        guard let data = iCloudKeyValueStore.shared.data(forKey: lastOpenKey(uid)),
               let date = try? JSONDecoder().decode(Date.self, from: data)
         else { return false }
         return Calendar.current.isDateInToday(date)

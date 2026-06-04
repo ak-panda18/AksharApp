@@ -1,7 +1,7 @@
 // StreakStore.swift
 //
 // Single source of truth for streak state.
-// - Persists visited dates to UserDefaults (fast, local)
+// - Persists visited dates to UserDefaults under a UID-scoped key (safe for multi-account)
 // - Merges with Firestore remote dates on login / listener fire
 // - Exposes the week grid (Mon–Sun) for the UI
 // - Resets automatically: the 7-day window always starts on the current Monday
@@ -10,14 +10,50 @@ import Foundation
 
 final class StreakStore {
 
-    // MARK: - Init
-    init() { loadFromDefaults() }
+    // MARK: - Singleton
+    // Streak data is per-user; configure(uid:) must be called after resolveChild
+    // so the store reads/writes from the correct UID-scoped UserDefaults key.
+    static let shared = StreakStore()
+    private init() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(iCloudReloadNotification),
+            name: .streakStoreNeedsReload,
+            object: nil
+        )
+    }
 
-    // MARK: - Storage
-    private let defaultsKey = "streakVisitedDates"   // stored as [String] ISO yyyy-MM-dd
+    @objc private func iCloudReloadNotification() {
+        loadFromDefaults()
+        NotificationCenter.default.post(name: .streakDidUpdate, object: nil)
+    }
+
+    // MARK: - Storage (UID-scoped)
+    private var currentUID: String = ""
+    private var defaultsKey: String { "streakVisitedDates_\(currentUID)" }
 
     /// All dates the user has opened the app, kept as a Set for O(1) lookup.
     private(set) var visitedDates: Set<String> = []
+
+    // MARK: - Configuration
+
+    /// Must be called after resolveChild(uid:) so the store reads from the correct key.
+    func configure(uid: String) {
+        guard uid != currentUID else { return }
+        currentUID = uid
+        loadFromDefaults()
+    }
+
+    // MARK: - Reset (call on logout)
+
+    /// Clears in-memory state and removes the current UID-scoped UserDefaults entry.
+    func reset() {
+        if !currentUID.isEmpty {
+            iCloudKeyValueStore.shared.removeObject(forKey: defaultsKey)
+        }
+        visitedDates = []
+        currentUID   = ""
+    }
 
     // MARK: - Record today
 
@@ -25,6 +61,7 @@ final class StreakStore {
     /// Returns true if today was newly recorded.
     @discardableResult
     func recordToday() -> Bool {
+        guard !currentUID.isEmpty else { return false }
         let today = dateKey(for: Date())
         guard !visitedDates.contains(today) else { return false }
         visitedDates.insert(today)
@@ -36,6 +73,7 @@ final class StreakStore {
 
     /// Merges Firestore-sourced dates into the local set (union — never removes local dates).
     func mergeRemoteDates(_ remoteDates: [String]) {
+        guard !currentUID.isEmpty else { return }
         let before = visitedDates.count
         visitedDates.formUnion(remoteDates)
         if visitedDates.count != before { persist() }
@@ -142,11 +180,11 @@ final class StreakStore {
     }()
 
     private func persist() {
-        UserDefaults.standard.set(Array(visitedDates), forKey: defaultsKey)
+        iCloudKeyValueStore.shared.set(Array(visitedDates), forKey: defaultsKey)
     }
 
     private func loadFromDefaults() {
-        let stored = UserDefaults.standard.stringArray(forKey: defaultsKey) ?? []
+        let stored = iCloudKeyValueStore.shared.stringArray(forKey: defaultsKey) ?? []
         visitedDates = Set(stored)
     }
 }

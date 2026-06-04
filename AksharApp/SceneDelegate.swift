@@ -16,11 +16,18 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let c = AppDependencyContainer()
         container = c
 
+        iCloudKeyValueStore.shared.startSyncing()
+
         // One-time JSON → CoreData migration. Runs once per install, no-ops thereafter.
         c.analyticsStore.migrateJSONToCoreData()
 
         if let currentUser = Auth.auth().currentUser {
             c.childManager.resolveChild(uid: currentUser.uid)
+            // Configure UID-scoped stores before showing home
+            StreakStore.shared.configure(uid: currentUser.uid)
+            // Start Firestore sync — authenticated users who restart the app
+            // without signing out would otherwise never get remote data.
+            c.syncService.startSync(uid: currentUser.uid)
             showHome(container: c)
         } else {
             // TODO: Uncomment the condition below to only show onboarding if the user has never seen it.
@@ -89,12 +96,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             // would be a no-op but adds unnecessary work.
             if let uid = Auth.auth().currentUser?.uid {
                 fresh.childManager.resolveChild(uid: uid)
+                StreakStore.shared.configure(uid: uid)
             }
             _navigateHome(container: fresh)
             return
         }
         if let uid = Auth.auth().currentUser?.uid {
             c.childManager.resolveChild(uid: uid)
+            StreakStore.shared.configure(uid: uid)
         }
         _navigateHome(container: c)
     }
@@ -111,8 +120,20 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                           options: .transitionCrossDissolve, animations: nil)
     }
 
-    /// Called after sign-out. Rebuilds the container so the next sign-in starts clean.
+    /// Called after sign-out. Clears all local user state then rebuilds the container.
     func showAuthAfterSignOut() {
+        // 1. Stop Firestore listeners before discarding the container.
+        container?.syncService.stopSync()
+
+        // 2. Clear UID-scoped local state so the next user starts clean.
+        container?.streakStore.reset()
+        container?.phonicsFlowManager.reset()
+        container?.phonicsGameplayManager.clearAllCycleProgress()
+        container?.skipManager.reset()
+        container?.ocrManager.reset()
+        UserDefaults.standard.removeObject(forKey: "firebaseUID")
+
+        // 3. Flush any pending CoreData saves, then rebuild the container.
         container?.coreDataStack.flushPendingSave()
 
         let fresh = AppDependencyContainer()

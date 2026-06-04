@@ -44,19 +44,22 @@ final class SpeechRecognitionManager {
 
         let audioSession = AVAudioSession.sharedInstance()
         do {
-            try audioSession.setCategory(.record, mode: .measurement, options: [.duckOthers])
+            try audioSession.setCategory(.playAndRecord, mode: .measurement,
+                                         options: [.duckOthers, .defaultToSpeaker, .allowBluetoothHFP])
             try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
         } catch {
             logger.error("SpeechRecognitionManager: audio session error – \(error)")
             return
         }
 
-        let inputNode = audioEngine.inputNode
-        inputNode.removeTap(onBus: 0)
+        // Reset the engine so it can be safely started after a previous stop
+        audioEngine.reset()
 
-        let recordingFormat = inputNode.inputFormat(forBus: 0)
+        let inputNode = audioEngine.inputNode
+        // Use outputFormat — it always returns a valid hardware format
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
         guard recordingFormat.sampleRate > 0, recordingFormat.channelCount > 0 else {
-            logger.error("SpeechRecognitionManager: invalid microphone format")
+            logger.error("SpeechRecognitionManager: invalid microphone format (sr=\(recordingFormat.sampleRate) ch=\(recordingFormat.channelCount))")
             return
         }
 
@@ -70,7 +73,8 @@ final class SpeechRecognitionManager {
                 let spoken = result.bestTranscription.segments.last?.substring.lowercased() ?? ""
                 self.onWordDetected?(spoken)
             }
-            if error != nil {
+            if let error {
+                logger.warning("SpeechRecognitionManager: recognition error – \(error)")
                 self.stopListening()
             }
         }
@@ -85,12 +89,19 @@ final class SpeechRecognitionManager {
 
     // MARK: - Stop Listening
     func stopListening() {
-        if audioEngine.isRunning { audioEngine.stop() }
-        audioEngine.inputNode.removeTap(onBus: 0)
         recognitionTask?.cancel()
         recognitionTask = nil
         recognitionRequest?.endAudio()
         recognitionRequest = nil
+
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
+        // Safely remove the tap — it may never have been installed
+        audioEngine.inputNode.removeTap(onBus: 0)
+
+        // Deactivate the session so the next activation starts from a clean state
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     // MARK: - Restart

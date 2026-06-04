@@ -18,6 +18,7 @@ class CheckpointViewController: UIViewController {
     var storyManager: StoryManager!
     var childManager: ChildManager!
     var checkpointHistoryManager: CheckpointHistoryManager!
+    var skipManager: SkipManager!
 
     // MARK: - Outlets
     @IBOutlet weak var videoContainerView: UIView!
@@ -56,11 +57,23 @@ class CheckpointViewController: UIViewController {
     private var isPaused        = false
     private var checkpointStartTime: Date?
 
+    // Mic hint label — shown next to the mic button
+    private let micHintLabel: UILabel = {
+        let lbl = UILabel()
+        lbl.text = "Tap to speak!"
+        lbl.font = UIFont(name: "ArialRoundedMTBold", size: 18) ?? UIFont.boldSystemFont(ofSize: 18)
+        lbl.textColor = UIColor(red: 0.478, green: 0.349, blue: 0.235, alpha: 1)
+        lbl.textAlignment = .center
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        return lbl
+    }()
+
     // MARK: - Lifecycle
     private func verifyDependencies() {
         assert(storyManager != nil, "storyManager was not injected into \(type(of: self))")
         assert(childManager != nil, "childManager was not injected into \(type(of: self))")
         assert(checkpointHistoryManager != nil, "checkpointHistoryManager was not injected into \(type(of: self))")
+        assert(skipManager != nil, "skipManager was not injected into \(type(of: self))")
         assert(story != nil, "story was not injected into \(type(of: self))")
         assert(checkpointItem != nil, "checkpointItem was not injected into \(type(of: self))")
     }
@@ -176,7 +189,7 @@ class CheckpointViewController: UIViewController {
             return
         }
         
-        let skips = SkipManager.shared.availableSkips
+        let skips = skipManager.availableSkips
         if skips > 0 {
             showSkipTicketAlert(skips: skips)
         } else {
@@ -190,7 +203,7 @@ class CheckpointViewController: UIViewController {
             onUseTicket: { [weak self] in
                 // Dismiss the SwiftUI overlay
                 self?.dismiss(animated: true) {
-                    SkipManager.shared.useSkip()
+                    self?.skipManager.useSkip()
                     self?.saveCheckpointCompletion()
                     self?.goToNextStoryPage()
                 }
@@ -272,6 +285,16 @@ private extension CheckpointViewController {
 
         micButton.setImage(UIImage(systemName: "microphone.fill"), for: .normal)
 
+        // Add hint label to the right of the mic button
+        if micHintLabel.superview == nil {
+            view.addSubview(micHintLabel)
+            NSLayoutConstraint.activate([
+                micHintLabel.leadingAnchor.constraint(equalTo: micButton.trailingAnchor, constant: 14),
+                micHintLabel.centerYAnchor.constraint(equalTo: micButton.centerYAnchor)
+            ])
+        }
+        micHintLabel.text = "Tap to speak!"
+
         previousScoresButton?.layer.cornerRadius = (previousScoresButton?.frame.height ?? 0) / 2
         previousScoresButton?.clipsToBounds = true
         configureSkipButtonStyle()
@@ -328,6 +351,7 @@ private extension CheckpointViewController {
         hasPerfectScore = true
         micButton.setImage(UIImage(systemName: "arrow.right.circle.fill"), for: .normal)
         micButton.tintColor = .systemGreen
+        micHintLabel.text = "Tap to continue!"
 
         let allWordsInText = checkpointItem.text.gradableWords
         let attributed = checkpointItem.text.colored(
@@ -345,6 +369,7 @@ private extension CheckpointViewController {
         
         micButton.setImage(UIImage(systemName: "microphone.fill"), for: .normal)
         micButton.tintColor = .systemBlue
+        micHintLabel.text = "Tap to speak!"
         checkpointLabel.textColor      = .label
         checkpointLabel.attributedText = nil
         checkpointLabel.text = currentEvaluationText
@@ -427,10 +452,12 @@ private extension CheckpointViewController {
         audioEngine.prepare()
         try? audioEngine.start()
         micButton.setImage(UIImage(systemName: "stop.fill"), for: .normal)
+        micHintLabel.text = "Click to submit."
     }
 
     func startGracefulStop() {
         micButton.isEnabled = false
+        micHintLabel.text = "Tap to speak!"
         recognitionRequest?.endAudio()
         stopTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
             guard let self else { return }
@@ -606,9 +633,9 @@ private extension CheckpointViewController {
             storyManager: storyManager
         )
         
-        // Backup: Local Save (in case Firebase has permission issues)
-        let localKey = "local_checkpoint_progress_\(story.id)"
-        UserDefaults.standard.set(true, forKey: localKey)
+        let childId = childManager.currentChild.id?.uuidString ?? "unknown"
+        let localKey = "local_checkpoint_progress_\(childId)_\(story.id)"
+        iCloudKeyValueStore.shared.set(true, forKey: localKey)
 
         updatePreviousScoresButtonState()
     }
@@ -640,6 +667,7 @@ private extension CheckpointViewController {
             vc.imageName = imgName; vc.readingSession = self.readingSession
             vc.storyManager = self.storyManager
             vc.childManager = self.childManager; vc.checkpointHistoryManager = self.checkpointHistoryManager
+            vc.skipManager  = self.skipManager
             nextVC = vc
         } else {
             guard let vc = storyboard.instantiateViewController(withIdentifier: "LabelReadingVC") as? LabelReadingViewController else { return }
@@ -647,6 +675,7 @@ private extension CheckpointViewController {
             vc.readingSession = self.readingSession
             vc.storyManager = self.storyManager
             vc.childManager = self.childManager; vc.checkpointHistoryManager = self.checkpointHistoryManager
+            vc.skipManager  = self.skipManager
             nextVC = vc
         }
 
@@ -669,6 +698,7 @@ private extension CheckpointViewController {
             vc.imageName = imgName; vc.readingSession = self.readingSession
             vc.storyManager = self.storyManager
             vc.childManager = self.childManager; vc.checkpointHistoryManager = self.checkpointHistoryManager
+            vc.skipManager  = self.skipManager
             nextVC = vc
         } else {
             guard let vc = storyboard.instantiateViewController(withIdentifier: "LabelReadingVC") as? LabelReadingViewController else { return }
@@ -676,6 +706,7 @@ private extension CheckpointViewController {
             vc.readingSession = self.readingSession
             vc.storyManager = self.storyManager
             vc.childManager = self.childManager; vc.checkpointHistoryManager = self.checkpointHistoryManager
+            vc.skipManager  = self.skipManager
             nextVC = vc
         }
 

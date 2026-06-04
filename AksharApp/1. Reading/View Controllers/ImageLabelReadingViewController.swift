@@ -14,10 +14,15 @@ class ImageLabelReadingViewController: UIViewController, AVSpeechSynthesizerDele
     // MARK: - Properties
     var readingSession: ReadingSessionData?
 
+    // Guided Learning Path
+    weak var sessionDelegate: AnyObject?
+    var orchestrator: SessionOrchestrator?
+
     // MARK: - Injected
     var storyManager: StoryManager!
     var childManager: ChildManager!
     var checkpointHistoryManager: CheckpointHistoryManager!
+    var skipManager: SkipManager!
 
     var story: Story!
     var currentIndex: Int = 0
@@ -48,6 +53,7 @@ class ImageLabelReadingViewController: UIViewController, AVSpeechSynthesizerDele
         speakerButton.addGestureRecognizer(longPress)
         StoryCollectionView.dataSource = self
         StoryCollectionView.delegate   = self
+        setupSwipeGestures()
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -140,6 +146,23 @@ class ImageLabelReadingViewController: UIViewController, AVSpeechSynthesizerDele
 
     @objc private func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
         if gesture.state == .began { showRestartPopup() }
+    }
+
+    private func setupSwipeGestures() {
+        let swipeLeft  = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
+        swipeLeft.direction  = .left
+        let swipeRight = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
+        swipeRight.direction = .right
+        view.addGestureRecognizer(swipeLeft)
+        view.addGestureRecognizer(swipeRight)
+    }
+
+    @objc private func handleSwipe(_ gesture: UISwipeGestureRecognizer) {
+        switch gesture.direction {
+        case .left:  goToPage(offset: 1);  stopSpeechIfNeeded()
+        case .right: goToPage(offset: -1); stopSpeechIfNeeded()
+        default: break
+        }
     }
     @objc private func restartTapped() {
         view.viewWithTag(999)?.removeFromSuperview()
@@ -258,16 +281,20 @@ private extension ImageLabelReadingViewController {
                     as? ImageLabelReadingViewController else { return }
             vc.story = story; vc.currentIndex = index; vc.storyTextString = page.text
             vc.imageName = imgName; vc.readingSession = readingSession
-            vc.storyManager = storyManager; 
+            vc.storyManager = storyManager
             vc.childManager = childManager; vc.checkpointHistoryManager = checkpointHistoryManager
+            vc.skipManager = skipManager
+            vc.sessionDelegate = sessionDelegate; vc.orchestrator = orchestrator
             nextVC = vc
         } else {
             guard let vc = storyboard.instantiateViewController(withIdentifier: "LabelReadingVC")
                     as? LabelReadingViewController else { return }
             vc.story = story; vc.currentIndex = index; vc.storyTextString = page.text
             vc.readingSession = readingSession
-            vc.storyManager = storyManager; 
+            vc.storyManager = storyManager
             vc.childManager = childManager; vc.checkpointHistoryManager = checkpointHistoryManager
+            vc.skipManager = skipManager
+            vc.sessionDelegate = sessionDelegate; vc.orchestrator = orchestrator
             nextVC = vc
         }
         if let nav = navigationController {
@@ -289,6 +316,9 @@ private extension ImageLabelReadingViewController {
                 if navigateToCheckpoint(nextIndex: newIndex) { return }
             }
         }
+
+        if offset > 0 { orchestrator?.recordReadingPageCompleted() }
+
         if newIndex >= totalCount {
             if let s = story { storyManager.saveProgress(storyId: s.id, pageIndex: currentIndex, didComplete: true) }
             popToReadingPreview(); return
@@ -319,8 +349,9 @@ private extension ImageLabelReadingViewController {
         cpVC.fallbackPageIndex = firstPageAfterLastCheckpoint(currentIndex: currentIndex)
         cpVC.forceRetake = forceRetake; cpVC.readingSession = self.readingSession
         cpVC.modalPresentationStyle = .fullScreen
-        cpVC.storyManager = storyManager; 
+        cpVC.storyManager = storyManager
         cpVC.childManager = childManager; cpVC.checkpointHistoryManager = checkpointHistoryManager
+        cpVC.skipManager = skipManager
         navigationController?.pushViewController(cpVC, animated: true)
         return true
     }

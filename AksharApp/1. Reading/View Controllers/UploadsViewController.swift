@@ -13,6 +13,7 @@ class UploadsViewController: UIViewController {
     var storyManager: StoryManager!
     var childManager: ChildManager!
     var checkpointHistoryManager: CheckpointHistoryManager!
+    var skipManager: SkipManager!
     
     private var isSelectionMode = false
     private var selectedDocIds: Set<String> = []
@@ -59,6 +60,22 @@ class UploadsViewController: UIViewController {
         tap.delegate = self
 
         dismissTapGesture = tap
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(iCloudDocumentsDidSync),
+            name: .coreDataDidSyncFromCloud,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func iCloudDocumentsDidSync() {
+        updateSelectButtonState()
+        collectionView.reloadData()
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -275,6 +292,7 @@ class UploadsViewController: UIViewController {
                 vc.storyManager             = storyManager
                 vc.childManager             = childManager
                 vc.checkpointHistoryManager = checkpointHistoryManager
+                vc.skipManager              = skipManager
                 navigationController?.pushViewController(vc, animated: true)
             }
         }

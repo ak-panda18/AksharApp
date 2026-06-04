@@ -7,15 +7,18 @@ private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "AksharAp
 final class CheckpointHistoryManager {
 
     private let coreData: CoreDataStack
+    private let childManager: ChildManager
 
-    init(coreDataStack: CoreDataStack) {
-        self.coreData = coreDataStack
+    init(coreDataStack: CoreDataStack, childManager: ChildManager) {
+        self.coreData     = coreDataStack
+        self.childManager = childManager
     }
 
     // MARK: - Fetching
 
     func getAllAttempts() -> [CheckpointAttempt] {
         let request: NSFetchRequest<CheckpointAttemptEntity> = CheckpointAttemptEntity.fetchRequest()
+        request.predicate       = childPredicate()
         request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
         request.fetchBatchSize  = 20
         return fetchAndMap(request: request)
@@ -23,10 +26,11 @@ final class CheckpointHistoryManager {
 
     func getAttempts(for storyTitle: String, checkpointNumber: Int) -> [CheckpointAttempt] {
         let request: NSFetchRequest<CheckpointAttemptEntity> = CheckpointAttemptEntity.fetchRequest()
-        request.predicate = NSPredicate(
-            format: "storyTitle == %@ AND checkpointNumber == %d",
-            storyTitle, Int64(checkpointNumber)
-        )
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            childPredicate(),
+            NSPredicate(format: "storyTitle == %@ AND checkpointNumber == %d",
+                        storyTitle, Int64(checkpointNumber))
+        ])
         request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
         request.fetchBatchSize  = 20
         return fetchAndMap(request: request)
@@ -34,10 +38,11 @@ final class CheckpointHistoryManager {
 
     func getLastAttempt(for storyTitle: String, checkpointNumber: Int) -> CheckpointAttempt? {
         let request: NSFetchRequest<CheckpointAttemptEntity> = CheckpointAttemptEntity.fetchRequest()
-        request.predicate = NSPredicate(
-            format: "storyTitle == %@ AND checkpointNumber == %d",
-            storyTitle, Int64(checkpointNumber)
-        )
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            childPredicate(),
+            NSPredicate(format: "storyTitle == %@ AND checkpointNumber == %d",
+                        storyTitle, Int64(checkpointNumber))
+        ])
         request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
         request.fetchLimit = 1
         return fetchAndMap(request: request).first
@@ -85,6 +90,7 @@ final class CheckpointHistoryManager {
     func save(attempt: CheckpointAttempt) {
         let entity = CheckpointAttemptEntity(context: coreData.context)
         entity.id               = UUID()
+        entity.childId          = childManager.currentChild.id?.uuidString ?? ""
         entity.storyTitle       = attempt.storyTitle
         entity.checkpointNumber = Int64(attempt.checkpointNumber)
         entity.accuracy         = Int64(attempt.accuracy)
@@ -102,11 +108,30 @@ final class CheckpointHistoryManager {
         coreData.saveContext()
     }
 
+    // MARK: - Stale record cleanup (called on login)
+
+    /// Deletes all CheckpointAttemptEntity rows not belonging to the current child.
+    func clearStaleRecords(keepingChildId childId: String) {
+        coreData.performBackgroundWrite { ctx in
+            let request: NSFetchRequest<CheckpointAttemptEntity> = CheckpointAttemptEntity.fetchRequest()
+            request.predicate = NSPredicate(format: "childId == nil OR (childId != %@)", childId)
+            if let stale = try? ctx.fetch(request) {
+                stale.forEach { ctx.delete($0) }
+                logger.info("CheckpointHistoryManager: deleted \(stale.count) stale attempt records")
+            }
+        }
+    }
+
     // MARK: - Legacy Migration
 
     func migrateLegacySpokenWords() {}
 
     // MARK: - Private
+
+    private func childPredicate() -> NSPredicate {
+        let childId = childManager.currentChild.id?.uuidString ?? ""
+        return NSPredicate(format: "childId == %@", childId)
+    }
 
     private func fetchAndMap(request: NSFetchRequest<CheckpointAttemptEntity>) -> [CheckpointAttempt] {
         do {

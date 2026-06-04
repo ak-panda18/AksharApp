@@ -22,7 +22,7 @@ class TwoWordTraceViewController: BaseTraceViewController, UICollectionViewDataS
             case .fourLetter: return 27.0
             case .fiveLetter: return 22.0
             case .sixLetter: return 17.0
-            case .power: return 17.0
+            case .power: return 15.0
             }
         }
         set { super.brushWidth = newValue }

@@ -107,7 +107,7 @@ class WordBuilder_ViewController: UIViewController,
         submitButton.setTitle("Submit", for: .normal)
         feedbackLabel.isHidden = true
         wordImage.image        = UIImage(named: q.imageName)
-        shuffledTiles          = q.tiles.shuffled()
+        shuffledTiles          = Self.shuffledDifferentFromOriginal(q.tiles)
         filledTiles            = Array(repeating: nil, count: q.blanksCount)
 
         for (i, button) in optionButtons.enumerated() {
@@ -200,5 +200,20 @@ class WordBuilder_ViewController: UIViewController,
             view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(answerViewTapped(_:))))
             view.isUserInteractionEnabled = true
         }
+    }
+
+    // MARK: - Shuffle Helper
+    /// Returns a shuffled copy of `tiles` that is guaranteed to differ from
+    /// the original order (i.e. the correct answer sequence), so the child
+    /// can never be handed the answer on a plate.
+    private static func shuffledDifferentFromOriginal(_ tiles: [String]) -> [String] {
+        guard tiles.count > 1 else { return tiles } // nothing to shuffle for a single tile
+        var result = tiles
+        var attempts = 0
+        repeat {
+            result = tiles.shuffled()
+            attempts += 1
+        } while result == tiles && attempts < 20
+        return result
     }
 }

@@ -14,13 +14,21 @@ class CustomAlertViewController: UIViewController {
     var alertMessage: String?
     var buttonText: String?
     var alertImage: UIImage?
+
+    /// Called when the action button is tapped.
     var onDismiss: (() -> Void)?
+
+    /// Optional: called when the user taps outside the card (background dimmer).
+    /// If nil, tapping outside does nothing (default for completion/celebration alerts).
+    /// Set this to a closure for dismissal without action (e.g. "stay in guided mode").
+    var onBackgroundTap: (() -> Void)?
 
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
         populateData()
+        setupBackgroundTap()
     }
     
     // MARK: - UI Setup
@@ -43,6 +51,10 @@ class CustomAlertViewController: UIViewController {
         
         titleLabel.font = .systemFont(ofSize: 32, weight: .medium).rounded()
         subtitleLabel.font = UIFont(name: "SF Pro Rounded", size: 28)
+
+        // Fix image being clipped at the top — use aspectFit so full teddy shows
+        rewardImageView.contentMode = .scaleAspectFit
+        rewardImageView.clipsToBounds = false
     }
     
     private func populateData() {
@@ -52,6 +64,24 @@ class CustomAlertViewController: UIViewController {
         
         rewardImageView.image = alertImage
         rewardImageView.isHidden = (alertImage == nil)
+    }
+
+    // MARK: - Background tap
+    private func setupBackgroundTap() {
+        // Only wire up the tap if a background-tap handler is provided
+        guard onBackgroundTap != nil else { return }
+        let tap = UITapGestureRecognizer(target: self, action: #selector(backgroundTapped(_:)))
+        tap.cancelsTouchesInView = false
+        view.addGestureRecognizer(tap)
+    }
+
+    @objc private func backgroundTapped(_ gesture: UITapGestureRecognizer) {
+        let location = gesture.location(in: view)
+        // Only dismiss if tapped outside the card
+        guard !parentView.frame.contains(location) else { return }
+        dismiss(animated: true) { [weak self] in
+            self?.onBackgroundTap?()
+        }
     }
 
     // MARK: - Actions

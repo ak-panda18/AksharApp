@@ -21,7 +21,9 @@ final class PhonicsGameplayManager {
     // MARK: - Session Lifecycle
     func startSession(for exercise: ExerciseType, totalQuestions: Int, startPointer: Int) {
         hasSavedSession  = false
-        currentCycleKey  = exercise.cycleKey
+        // Scope the cycle key to the current child's UID to prevent cross-profile leaks.
+        let uid = childManager.currentChild.firebaseUID ?? childManager.currentChild.id?.uuidString ?? "unknown"
+        currentCycleKey  = exercise.cycleKey(uid: uid)
 
         cycle = loadCycle(key: currentCycleKey)
             ?? RandomizedQuestionCycle(count: totalQuestions, startPointer: startPointer)
@@ -46,7 +48,15 @@ final class PhonicsGameplayManager {
     }
 
     func clearCycleProgress() {
-        UserDefaults.standard.removeObject(forKey: currentCycleKey)
+        iCloudKeyValueStore.shared.removeObject(forKey: currentCycleKey)
+    }
+
+    /// Clears all cycle keys for all exercise types for this child. Call on logout.
+    func clearAllCycleProgress() {
+        let uid = childManager.currentChild.firebaseUID ?? childManager.currentChild.id?.uuidString ?? "unknown"
+        ExerciseType.allCases.forEach {
+            iCloudKeyValueStore.shared.removeObject(forKey: $0.cycleKey(uid: uid))
+        }
     }
 
     // MARK: - Game Loop
@@ -69,12 +79,12 @@ final class PhonicsGameplayManager {
     // MARK: - Persistence
     private func saveCycle(_ cycle: RandomizedQuestionCycle, key: String) {
         if let data = try? JSONEncoder().encode(cycle) {
-            UserDefaults.standard.set(data, forKey: key)
+            iCloudKeyValueStore.shared.set(data, forKey: key)
         }
     }
 
     private func loadCycle(key: String) -> RandomizedQuestionCycle? {
-        guard let data = UserDefaults.standard.data(forKey: key),
+        guard let data = iCloudKeyValueStore.shared.data(forKey: key),
               let cycle = try? JSONDecoder().decode(RandomizedQuestionCycle.self, from: data)
         else { return nil }
         return cycle

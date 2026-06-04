@@ -9,11 +9,39 @@ private struct PhonicsFlowState: Codable {
 
 final class PhonicsFlowManager {
 
-    private let storageKey = "phonics_flow_state_v2"
+    private let uid: String
+    private var storageKey: String { "phonics_flow_state_v2_\(uid)" }
     private var state: PhonicsFlowState
 
-    init() {
-        if let data  = UserDefaults.standard.data(forKey: storageKey),
+    init(uid: String) {
+        self.uid = uid
+        
+        // Initialize state first before using self
+        if let data  = iCloudKeyValueStore.shared.data(forKey: "phonics_flow_state_v2_\(uid)"),
+           let saved = try? JSONDecoder().decode(PhonicsFlowState.self, from: data) {
+            self.state = saved
+        } else {
+            self.state = PhonicsFlowState(
+                isFirstRun:      true,
+                currentIndex:    0,
+                shuffledIndices: Array(0..<ExerciseType.allCases.count).shuffled()
+            )
+        }
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(iCloudReloadNotification),
+            name: .phonicsFlowNeedsReload,
+            object: nil
+        )
+    }
+
+    @objc private func iCloudReloadNotification() {
+        loadState()
+    }
+
+    private func loadState() {
+        if let data  = iCloudKeyValueStore.shared.data(forKey: "phonics_flow_state_v2_\(uid)"),
            let saved = try? JSONDecoder().decode(PhonicsFlowState.self, from: data) {
             state = saved
         } else {
@@ -26,6 +54,7 @@ final class PhonicsFlowManager {
     }
 
     // MARK: - Public API
+
     func getCurrentExercise() -> ExerciseType {
         let all = ExerciseType.allCases
         if state.isFirstRun {
@@ -45,7 +74,14 @@ final class PhonicsFlowManager {
         }
     }
 
+    // MARK: - Reset (call on logout)
+
+    func reset() {
+        iCloudKeyValueStore.shared.removeObject(forKey: storageKey)
+    }
+
     // MARK: - Private
+
     private func finishCycle() {
         state.currentIndex = 0
         state.isFirstRun   = false
@@ -63,7 +99,7 @@ final class PhonicsFlowManager {
 
     private func saveState() {
         if let data = try? JSONEncoder().encode(state) {
-            UserDefaults.standard.set(data, forKey: storageKey)
+            iCloudKeyValueStore.shared.set(data, forKey: storageKey)
         }
     }
 }

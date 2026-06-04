@@ -17,8 +17,9 @@ enum AksharModule: String, CaseIterable {
 
 enum SessionPhase: Equatable {
     case idle
-    case inProgress(AksharModule)
-    case transitioning(from: AksharModule, to: AksharModule)
+    case previewing(AksharModule)                        // "Begin / Continue with X" card
+    case inProgress(AksharModule)                        // inside the actual activity
+    case transitioning(from: AksharModule, to: AksharModule)  // completion alert before next preview
     case complete
 }
 
@@ -46,9 +47,16 @@ final class SessionOrchestrator: ObservableObject {
         self.phase = .idle
     }
     
+    /// Home arrow tapped → show "Begin with X" preview for first module
     func startSession() {
         guard let plan = todaysPlan, let first = plan.order.first else { return }
-        phase = .inProgress(first)
+        phase = .previewing(first)
+    }
+    
+    /// Arrow tapped on "Begin / Continue" card → jump into the real activity
+    func beginCurrentModule() {
+        guard case .previewing(let module) = phase else { return }
+        phase = .inProgress(module)
     }
     
     func recordPhonicsRoundCompleted() {
@@ -88,8 +96,9 @@ final class SessionOrchestrator: ObservableObject {
         }
     }
     
+    /// Called after the completion alert is dismissed — show preview for next module
     func confirmTransition() {
         guard case .transitioning(_, let toModule) = phase else { return }
-        phase = .inProgress(toModule)
+        phase = .previewing(toModule)
     }
 }

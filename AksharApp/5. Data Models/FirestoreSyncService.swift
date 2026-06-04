@@ -77,11 +77,23 @@ final class FirestoreSyncService {
         guard !uid.isEmpty else { return }
         self.uid = uid
         logger.info("FirestoreSyncService: starting sync for uid \(uid)")
+        // Step 0: remove any CoreData records that predate child-scoping
+        // (records with a nil/empty childId from before this fix was applied).
+        clearStaleLocalData()
         // Step 1: pull remote → local (one-time on login / device switch)
         pullAll {
             // Step 2: start real-time listeners so remote changes appear instantly
             self.attachListeners()
         }
+    }
+
+    /// Deletes local CoreData records that don't belong to the current child.
+    /// Safe to call on every login — it's a no-op once all records carry a childId.
+    private func clearStaleLocalData() {
+        let childId = childManager.currentChild.id?.uuidString ?? ""
+        guard !childId.isEmpty else { return }
+        readingProgressStore.clearStaleRecords(keepingChildId: childId)
+        checkpointHistoryManager.clearStaleRecords(keepingChildId: childId)
     }
 
     /// Call on sign-out to remove all listeners.
