@@ -48,16 +48,18 @@ enum ExerciseType: CaseIterable {
         }
     }
     
-    var cycleKey: String {
-            switch self {
-            case .rhyme: return "rhyme_words_cycle"
-            case .detective: return "sound_detector_cycle"
-            case .quizMyStory: return "quiz_my_story_cycle"
-            case .fluency: return "fluency_cycle"
-            case .wordBuilder: return "word_builder_cycle"
-            }
+    func cycleKey(uid: String) -> String {
+        let base: String
+        switch self {
+        case .rhyme:        base = "rhyme_words_cycle"
+        case .detective:    base = "sound_detector_cycle"
+        case .quizMyStory:  base = "quiz_my_story_cycle"
+        case .fluency:      base = "fluency_cycle"
+        case .wordBuilder:  base = "word_builder_cycle"
         }
-        
+        return "\(base)_\(uid)"
+    }
+
     var exerciseKey: String {
         switch self {
         case .rhyme: return "rhyme_words"

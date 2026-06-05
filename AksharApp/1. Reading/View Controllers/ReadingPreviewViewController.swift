@@ -39,6 +39,8 @@ final class ReadingPreviewViewController: UIViewController {
     var storyManager: StoryManager!
     var childManager: ChildManager!
     var checkpointHistoryManager: CheckpointHistoryManager!
+    var skipManager: SkipManager!
+    var orchestrator: SessionOrchestrator?   // injected by LearningPathHostVC when in guided mode
 
     private let difficultyLevels = ["Level 1", "Level 2", "Level 3"]
 
@@ -370,6 +372,8 @@ final class ReadingPreviewViewController: UIViewController {
                 vc.storyManager = storyManager
                 vc.childManager = childManager
                 vc.checkpointHistoryManager = checkpointHistoryManager
+                vc.skipManager = skipManager
+                vc.orchestrator = orchestrator   // pass through for guided learning
                 navigationController?.pushViewController(vc, animated: true)
             } else {
                 guard let vc = storyboard.instantiateViewController(withIdentifier: "LabelReadingVC") as? LabelReadingViewController else { return }
@@ -379,6 +383,8 @@ final class ReadingPreviewViewController: UIViewController {
                 vc.storyManager = storyManager
                 vc.childManager = childManager
                 vc.checkpointHistoryManager = checkpointHistoryManager
+                vc.skipManager = skipManager
+                vc.orchestrator = orchestrator   // pass through for guided learning
                 navigationController?.pushViewController(vc, animated: true)
             }
         }

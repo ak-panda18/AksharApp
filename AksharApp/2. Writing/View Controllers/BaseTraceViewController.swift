@@ -18,6 +18,11 @@ class BaseTraceViewController: UIViewController {
     var lastValidatedPoint: CGPoint = .zero
     var tracingHandLayer: CALayer?
     
+    // Guided Learning Path
+    weak var sessionDelegate: AnyObject?
+    var orchestrator: SessionOrchestrator?
+
+    
     // MARK: - State
     var isTracingLocked = false
     let synthesizer = AVSpeechSynthesizer()

@@ -28,7 +28,7 @@ final class ChildManager {
     func linkFirebaseUID(_ uid: String) {
         currentChild.firebaseUID = uid
         coreData.saveContext()
-        UserDefaults.standard.set(uid, forKey: "firebaseUID")
+        iCloudKeyValueStore.shared.set(uid, forKey: "firebaseUID")
     }
 
     func resolveChild(uid: String) {
@@ -39,7 +39,7 @@ final class ChildManager {
         if let match = try? coreData.context.fetch(request).first {
             logger.info("ChildManager: resolved existing child id=\(match.id?.uuidString ?? "nil")")
             currentChild = match
-            UserDefaults.standard.set(match.id?.uuidString, forKey: activeKey)
+            iCloudKeyValueStore.shared.set(match.id?.uuidString, forKey: activeKey)
         } else {
             logger.info("ChildManager: no entity found for uid \(uid) — creating new ChildEntity")
             let child         = ChildEntity(context: coreData.context)
@@ -50,8 +50,8 @@ final class ChildManager {
             child.createdAt   = Date()
             coreData.saveContext()
             currentChild = child
-            UserDefaults.standard.set(child.id?.uuidString, forKey: activeKey)
-            UserDefaults.standard.set(uid, forKey: "firebaseUID")
+            iCloudKeyValueStore.shared.set(child.id?.uuidString, forKey: activeKey)
+            iCloudKeyValueStore.shared.set(uid, forKey: "firebaseUID")
         }
     }
 
@@ -72,8 +72,8 @@ final class ChildManager {
     func deleteCurrentChild() {
         coreData.context.delete(currentChild)
         coreData.saveContext()
-        UserDefaults.standard.removeObject(forKey: activeKey)
-        UserDefaults.standard.removeObject(forKey: "firebaseUID")
+        iCloudKeyValueStore.shared.removeObject(forKey: activeKey)
+        iCloudKeyValueStore.shared.removeObject(forKey: "firebaseUID")
         logger.info("ChildManager: deleted current child and cleared UserDefaults keys")
     }
 
@@ -86,7 +86,7 @@ final class ChildManager {
 
     func setActiveChild(_ child: ChildEntity) {
         guard let id = child.id?.uuidString else { return }
-        UserDefaults.standard.set(id, forKey: activeKey)
+        iCloudKeyValueStore.shared.set(id, forKey: activeKey)
         currentChild = child
     }
 
@@ -105,7 +105,7 @@ final class ChildManager {
         coreDataStack: CoreDataStack
     ) -> ChildEntity {
         let request: NSFetchRequest<ChildEntity> = ChildEntity.fetchRequest()
-        if let savedId = UserDefaults.standard.string(forKey: activeKey),
+        if let savedId = iCloudKeyValueStore.shared.string(forKey: activeKey),
            let uuid = UUID(uuidString: savedId) {
             request.predicate  = NSPredicate(format: "id == %@", uuid as CVarArg)
             request.fetchLimit = 1
@@ -115,13 +115,13 @@ final class ChildManager {
         request.fetchLimit   = 0
         request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
         if let first = try? context.fetch(request).first {
-            UserDefaults.standard.set(first.id?.uuidString, forKey: activeKey)
+            iCloudKeyValueStore.shared.set(first.id?.uuidString, forKey: activeKey)
             return first
         }
         let child = ChildEntity(context: context)
         child.id = UUID(); child.name = "Default Child"; child.createdAt = Date()
         coreDataStack.saveContext()
-        UserDefaults.standard.set(child.id?.uuidString, forKey: activeKey)
+        iCloudKeyValueStore.shared.set(child.id?.uuidString, forKey: activeKey)
         return child
     }
 }

@@ -133,6 +133,9 @@ class OneLetterTraceViewController: BaseTraceViewController, UICollectionViewDat
         nextChevronButton.isEnabled         = true
         nextChevronButton.alpha             = 1.0
         traceCompleteButton.backgroundColor = .systemGreen
+        
+        // Guided Learning Path
+        orchestrator?.recordLetterCompleted()
     }
 
     // MARK: - Actions

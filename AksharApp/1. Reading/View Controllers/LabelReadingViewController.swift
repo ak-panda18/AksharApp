@@ -4,11 +4,17 @@ import AVFoundation
 class LabelReadingViewController: UIViewController {
 
     var readingSession: ReadingSessionData?
+    
+    // Guided Learning Path
+    weak var sessionDelegate: AnyObject?
+    var orchestrator: SessionOrchestrator?
+
 
     // MARK: - Injected
     var storyManager: StoryManager!
     var childManager: ChildManager!
     var checkpointHistoryManager: CheckpointHistoryManager!
+    var skipManager: SkipManager!
 
     // MARK: - Outlets
     @IBOutlet weak var speakerButton: UIButton!
@@ -67,6 +73,7 @@ class LabelReadingViewController: UIViewController {
         speakerButton.addGestureRecognizer(UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress(_:))))
         StoryCollectionView.dataSource = self
         StoryCollectionView.delegate   = self
+        setupSwipeGestures()
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -202,6 +209,23 @@ class LabelReadingViewController: UIViewController {
 
     @objc private func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
         if gesture.state == .began { showRestartPopup() }
+    }
+
+    private func setupSwipeGestures() {
+        let swipeLeft  = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
+        swipeLeft.direction  = .left
+        let swipeRight = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
+        swipeRight.direction = .right
+        view.addGestureRecognizer(swipeLeft)
+        view.addGestureRecognizer(swipeRight)
+    }
+
+    @objc private func handleSwipe(_ gesture: UISwipeGestureRecognizer) {
+        switch gesture.direction {
+        case .left:  goToPage(offset: 1);  stopSpeechIfNeeded()
+        case .right: goToPage(offset: -1); stopSpeechIfNeeded()
+        default: break
+        }
     }
     @objc private func restartTapped() {
         view.viewWithTag(999)?.removeFromSuperview()
@@ -358,6 +382,7 @@ private extension LabelReadingViewController {
             vc.storyTextString = pages[index]; vc.readingSession = readingSession
             vc.storyManager = storyManager
             vc.childManager = childManager; vc.checkpointHistoryManager = checkpointHistoryManager
+            vc.skipManager  = skipManager
             return vc
         }
         guard let story else { fatalError("Neither story nor scannedPages provided") }
@@ -368,6 +393,7 @@ private extension LabelReadingViewController {
             vc.imageName = imageName; vc.readingSession = readingSession
             vc.storyManager = storyManager
             vc.childManager = childManager; vc.checkpointHistoryManager = checkpointHistoryManager
+            vc.skipManager  = skipManager
             return vc
         } else {
             guard let vc = storyboard.instantiateViewController(withIdentifier: "LabelReadingVC") as? LabelReadingViewController else { return UIViewController() }
@@ -375,6 +401,7 @@ private extension LabelReadingViewController {
             vc.readingSession = readingSession
             vc.storyManager = storyManager
             vc.childManager = childManager; vc.checkpointHistoryManager = checkpointHistoryManager
+            vc.skipManager  = skipManager
             return vc
         }
     }
@@ -404,6 +431,9 @@ private extension LabelReadingViewController {
         if currentPage.checkAfter && !isCurrentCheckpointCompleted() {
             if navigateToCheckpoint(nextIndex: newIndex) { return }
         }
+        
+        if offset > 0 { orchestrator?.recordReadingPageCompleted() }
+
         if newIndex >= totalCount {
             storyManager.saveProgress(storyId: story.id, pageIndex: currentIndex, didComplete: true)
             popToReadingPreview(); return
@@ -447,6 +477,7 @@ private extension LabelReadingViewController {
         cpVC.modalPresentationStyle = .fullScreen
         cpVC.storyManager = storyManager
         cpVC.childManager = childManager; cpVC.checkpointHistoryManager = checkpointHistoryManager
+        cpVC.skipManager = skipManager
         navigationController?.pushViewController(cpVC, animated: true)
         return true
     }

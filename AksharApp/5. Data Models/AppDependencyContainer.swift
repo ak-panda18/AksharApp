@@ -47,13 +47,23 @@ final class AppDependencyContainer {
     // MARK: - Profile
     let profileStore: ProfileStore
 
+    // MARK: - Skip
+    let skipManager: SkipManager
+
     // MARK: - Sync
     let syncService: FirestoreSyncService
 
+    // MARK: - Guided Learning Path
+    let learningPathEngine: LearningPathEngine
+    let sessionOrchestrator: SessionOrchestrator
+    
+    // MARK: - Stores
+    let streakStore: StreakStore
+    
     // MARK: - Init
     init() {
         coreDataStack    = CoreDataStack()
-        bundleDataLoader = BundleDataLoader.shared
+        bundleDataLoader = BundleDataLoader()
 
         childManager = ChildManager(coreDataStack: coreDataStack)
 
@@ -61,13 +71,15 @@ final class AppDependencyContainer {
                                         childManager: childManager)
 
         storyRepository      = StoryRepository(bundleDataLoader: bundleDataLoader)
-        readingProgressStore = ReadingProgressStore(coreDataStack: coreDataStack)
+        readingProgressStore = ReadingProgressStore(coreDataStack: coreDataStack,
+                                                     childManager: childManager)
 
         storyManager = StoryManager(repository: storyRepository,
                                     progressStore: readingProgressStore,
                                     analyticsStore: analyticsStore)
 
-        checkpointHistoryManager = CheckpointHistoryManager(coreDataStack: coreDataStack)
+        checkpointHistoryManager = CheckpointHistoryManager(coreDataStack: coreDataStack,
+                                                            childManager: childManager)
 
         writingProgressStore  = WritingProgressStore(coreDataStack: coreDataStack,
                                                      childManager: childManager)
@@ -83,14 +95,24 @@ final class AppDependencyContainer {
         )
         phonicsGameplayManager = PhonicsGameplayManager(analyticsStore: analyticsStore,
                                                         childManager: childManager)
-        phonicsFlowManager = PhonicsFlowManager()
-        ocrManager   = OCRManager()
+        // uid for key-scoping: prefer Firebase UID, fall back to CoreData UUID
+        let uid = childManager.currentChild.firebaseUID
+                  ?? childManager.currentChild.id?.uuidString
+                  ?? "unknown"
+        phonicsFlowManager = PhonicsFlowManager(uid: uid)
+        ocrManager   = OCRManager(childManager: childManager)
         profileStore = ProfileStore()
+        skipManager  = SkipManager(uid: uid)
 
         speechManager            = SpeechManager()
         speechRecognitionManager = SpeechRecognitionManager()
         gameTimerManager         = GameTimerManager(seconds: 30)
 
+        learningPathEngine = LearningPathEngine(analyticsStore: analyticsStore)
+        sessionOrchestrator = SessionOrchestrator(engine: learningPathEngine)
+        
+        streakStore = StreakStore.shared
+        
         // Sync service wires together all stores that need cross-device persistence.
         syncService = FirestoreSyncService(
             analyticsStore:           analyticsStore,
@@ -110,20 +132,40 @@ final class AppDependencyContainer {
 
     // MARK: - Injection
 
-    func inject(into homeVC: HomeViewController) {
-        homeVC.storyManager             = storyManager
-        homeVC.writingGameplayManager   = writingGameplayManager
-        homeVC.analyticsStore           = analyticsStore
-        homeVC.childManager             = childManager
-        homeVC.checkpointHistoryManager = checkpointHistoryManager
-        homeVC.phonicsFlowManager       = phonicsFlowManager
-        homeVC.phonicsGameplayManager   = phonicsGameplayManager
-        homeVC.bundleDataLoader         = bundleDataLoader
-        homeVC.ocrManager               = ocrManager
-        homeVC.speechManager            = speechManager
-        homeVC.speechRecognitionManager = speechRecognitionManager
-        homeVC.gameTimerManager         = gameTimerManager
-        homeVC.profileStore             = profileStore
+    func inject(into vc: LearningPathHostVC) {
+        vc.orchestrator             = sessionOrchestrator
+        vc.storyManager             = storyManager
+        vc.writingGameplayManager   = writingGameplayManager
+        vc.analyticsStore           = analyticsStore
+        vc.childManager             = childManager
+        vc.checkpointHistoryManager = checkpointHistoryManager
+        vc.phonicsFlowManager       = phonicsFlowManager
+        vc.phonicsGameplayManager   = phonicsGameplayManager
+        vc.bundleDataLoader         = bundleDataLoader
+        vc.ocrManager               = ocrManager
+        vc.speechManager            = speechManager
+        vc.speechRecognitionManager = speechRecognitionManager
+        vc.gameTimerManager         = gameTimerManager
+        vc.profileStore             = profileStore
+        vc.skipManager              = skipManager
+    }
+
+    // GUIDED LEARNING PATH DISABLED: used when SceneDelegate points to HomeViewController
+    func inject(into vc: HomeViewController) {
+        vc.storyManager             = storyManager
+        vc.writingGameplayManager   = writingGameplayManager
+        vc.analyticsStore           = analyticsStore
+        vc.childManager             = childManager
+        vc.checkpointHistoryManager = checkpointHistoryManager
+        vc.phonicsFlowManager       = phonicsFlowManager
+        vc.phonicsGameplayManager   = phonicsGameplayManager
+        vc.bundleDataLoader         = bundleDataLoader
+        vc.ocrManager               = ocrManager
+        vc.speechManager            = speechManager
+        vc.speechRecognitionManager = speechRecognitionManager
+        vc.gameTimerManager         = gameTimerManager
+        vc.profileStore             = profileStore
+        vc.skipManager              = skipManager
     }
 
     func inject(into vc: AnalyticsViewController) {
@@ -135,6 +177,7 @@ final class AppDependencyContainer {
         vc.storyManager             = storyManager
         vc.childManager             = childManager
         vc.checkpointHistoryManager = checkpointHistoryManager
+        vc.skipManager              = skipManager
     }
 
     func inject(into vc: UploadsViewController) {
@@ -142,6 +185,7 @@ final class AppDependencyContainer {
         vc.storyManager             = storyManager
         vc.childManager             = childManager
         vc.checkpointHistoryManager = checkpointHistoryManager
+        vc.skipManager              = skipManager
     }
 
     func inject(into vc: SpinWheelViewController) {
@@ -157,11 +201,13 @@ final class AppDependencyContainer {
         vc.storyManager             = storyManager
         vc.childManager             = childManager
         vc.checkpointHistoryManager = checkpointHistoryManager
+        vc.skipManager              = skipManager
     }
 
     func inject(into vc: LabelReadingViewController) {
         vc.storyManager             = storyManager
         vc.childManager             = childManager
         vc.checkpointHistoryManager = checkpointHistoryManager
+        vc.skipManager              = skipManager
     }
 }

@@ -3,6 +3,7 @@
     <entity name="CheckpointAttemptEntity" representedClassName="CheckpointAttemptEntity" syncable="YES" codeGenerationType="class">
         <attribute name="accuracy" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="checkpointNumber" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="childId" optional="YES" attributeType="String"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="storyTitle" optional="YES" attributeType="String"/>
         <attribute name="timestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -64,6 +65,7 @@
         <relationship name="attempt" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CheckpointAttemptEntity" inverseName="words" inverseEntity="CheckpointAttemptEntity"/>
     </entity>
     <entity name="StoryEntity" representedClassName="StoryEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="childId" optional="YES" attributeType="String"/>
         <attribute name="isCompleted" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="lastPageIndex" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="lastReadDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>

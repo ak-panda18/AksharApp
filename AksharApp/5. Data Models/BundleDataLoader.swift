@@ -5,6 +5,7 @@ private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "AksharAp
 
 final class BundleDataLoader {
 
+    // Singleton for use in static contexts (e.g. PhonemeEngine) where DI is not possible.
     static let shared = BundleDataLoader()
 
     init() {}

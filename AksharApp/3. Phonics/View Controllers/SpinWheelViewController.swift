@@ -15,6 +15,11 @@ class SpinWheelViewController: UIViewController {
     var speechRecognitionManager: SpeechRecognitionManager!
     var gameTimerManager: GameTimerManager!
     var writingGameplayManager: WritingGameplayManager!
+    
+    // Guided Learning Path
+    weak var sessionDelegate: AnyObject? // Since AksharActivityDelegate is not defined, using AnyObject?
+    var orchestrator: SessionOrchestrator?
+
 
     private var pointerLayer: CALayer?
     private var tapTextLayer: CATextLayer?
@@ -370,6 +375,8 @@ class SpinWheelViewController: UIViewController {
             })
 
             self.phonicsFlowManager.advance()
+            
+            self.orchestrator?.recordPhonicsRoundCompleted()
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                 self.goToCover()

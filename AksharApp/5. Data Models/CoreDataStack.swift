@@ -5,10 +5,23 @@ private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "AksharAp
 
 final class CoreDataStack {
 
-    init() {}
+    init() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(persistentStoreRemoteChange(_:)),
+            name: .NSPersistentStoreRemoteChange,
+            object: nil
+        )
+    }
 
-    lazy var persistentContainer: NSPersistentContainer = {
-        let container = NSPersistentContainer(name: "AksharDataModel")
+    @objc private func persistentStoreRemoteChange(_ notification: Notification) {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .coreDataDidSyncFromCloud, object: nil)
+        }
+    }
+
+    lazy var persistentContainer: NSPersistentCloudKitContainer = {
+        let container = NSPersistentCloudKitContainer(name: "AksharDataModel")
 
         let storeURL = NSPersistentContainer.defaultDirectoryURL()
             .appendingPathComponent("AksharDataModel.sqlite")
@@ -17,6 +30,11 @@ final class CoreDataStack {
         description.shouldInferMappingModelAutomatically = true
         description.setOption(["journal_mode": "WAL"] as NSDictionary,
                               forKey: NSSQLitePragmasOption)
+        
+        // CloudKit Sync requirements
+        description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+        description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+        
         container.persistentStoreDescriptions = [description]
 
         container.loadPersistentStores { _, error in
