@@ -7,7 +7,7 @@ class LearningPathHostVC: HomeViewController {
     // ─── TEMPORARY DISABLE FLAG ──────────────────────────────────────────────
     // Set to false to bypass the guided learning path and show the normal home
     // screen. Set back to true when you want the learning path re-enabled.
-    static let guidedLearningPathEnabled = true
+    static let guidedLearningPathEnabled = false
     // ─────────────────────────────────────────────────────────────────────────
 
     var orchestrator: SessionOrchestrator!
