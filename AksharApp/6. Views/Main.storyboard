@@ -1206,7 +1206,7 @@
         <!--Home View Controller-->
         <scene sceneID="CLi-Q9-Ja2">
             <objects>
-                <viewController storyboardIdentifier="HomeVC" id="LBp-03-dA9" customClass="LearningPathHostVC" customModule="AksharApp" customModuleProvider="target" sceneMemberID="viewController">
+                <viewController storyboardIdentifier="HomeVC" id="LBp-03-dA9" customClass="HomeViewController" customModule="AksharApp" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="tAw-fj-Spw">
                         <rect key="frame" x="0.0" y="0.0" width="810" height="1080"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
