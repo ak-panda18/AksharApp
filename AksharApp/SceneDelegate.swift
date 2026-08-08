@@ -56,7 +56,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let sb = UIStoryboard(name: "Main", bundle: nil)
         guard let homeNav = sb.instantiateViewController(
             withIdentifier: "HomeNavController") as? UINavigationController,
-              let homeVC = homeNav.viewControllers.first as? LearningPathHostVC
+              let homeVC = homeNav.viewControllers.first as? HomeViewController
         else { return }
         c.inject(into: homeVC)
         window?.rootViewController = homeNav
@@ -112,11 +112,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let sb = UIStoryboard(name: "Main", bundle: nil)
         guard let homeNav = sb.instantiateViewController(
             withIdentifier: "HomeNavController") as? UINavigationController,
-              let homeVC = homeNav.viewControllers.first as? LearningPathHostVC
+              let homeVC = homeNav.viewControllers.first as? HomeViewController
         else { return }
         c.inject(into: homeVC)
         window?.rootViewController = homeNav
-        UIView.transition(with: window!, duration: 0.35,
+        guard let window else { return }
+        UIView.transition(with: window, duration: 0.35,
                           options: .transitionCrossDissolve, animations: nil)
     }
 

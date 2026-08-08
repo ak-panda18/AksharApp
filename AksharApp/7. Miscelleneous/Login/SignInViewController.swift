@@ -14,13 +14,16 @@ class SignInViewController: UIViewController, UITextFieldDelegate {
     
     var childManager: ChildManager!
 
-    private func verifyDependencies() {
-        assert(childManager != nil, "childManager was not injected into \(type(of: self))")
+    private func verifyDependencies() -> Bool {
+        // SignInViewController is the storyboard's initialViewController, so iOS instantiates
+        // it before SceneDelegate has a chance to inject childManager. SceneDelegate immediately
+        // replaces it as root, so we guard quietly and bail rather than crash.
+        return childManager != nil
     }
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        verifyDependencies()
+        // Always set up UI — safe even without childManager (the storyboard cold-boot case).
         setupKeyboardObservers()
         setupTextFields()
     }
@@ -34,6 +37,7 @@ class SignInViewController: UIViewController, UITextFieldDelegate {
 
     // MARK: - Email Sign In
     @IBAction func signInTapped(_ sender: UIButton) {
+        guard childManager != nil else { return }
         guard let email    = textFields[0].text?.trimmingCharacters(in: .whitespacesAndNewlines),
               let password = textFields[1].text,
               !email.isEmpty, !password.isEmpty
@@ -62,6 +66,7 @@ class SignInViewController: UIViewController, UITextFieldDelegate {
 
     // MARK: - Google Sign In
     @IBAction func googleSignInTapped(_ sender: UIButton) {
+        guard childManager != nil else { return }
         guard let clientID = FirebaseApp.app()?.options.clientID else { return }
 
         let config = GIDConfiguration(clientID: clientID)
