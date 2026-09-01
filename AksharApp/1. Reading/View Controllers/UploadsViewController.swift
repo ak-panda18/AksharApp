@@ -352,6 +352,7 @@ extension UploadsViewController: UICollectionViewDataSource {
             cell.imageView.layer.borderColor = UIColor.systemGray4.cgColor
             cell.imageView.layer.cornerRadius = 8
             cell.imageView.clipsToBounds = true
+            cell.imageView.backgroundColor = UIColor.white.withAlphaComponent(0.6)
 
             cell.imageView.image = UIImage(systemName: "plus")
             cell.imageView.preferredSymbolConfiguration =
@@ -384,6 +385,7 @@ extension UploadsViewController: UICollectionViewDataSource {
             cell.imageView.layer.borderWidth = 0
             cell.imageView.layer.borderColor = nil
             cell.imageView.layer.cornerRadius = 0
+            cell.imageView.backgroundColor = .clear
 
             if let thumb = ocrManager.getThumbnail(for: doc) {
                 cell.imageView.image = thumb

@@ -33,6 +33,9 @@ class OnboardingContentVC: UIViewController {
         titleLabel.text = titleText
         subtitleLabel.text = subtitleText
         backgroundImageView.image = backgroundImage
+        if pageIndex == 0 {
+            backgroundImageView.transform = CGAffineTransform(scaleX: 1.3, y: 1.3)
+        }
         
         setupGetStartedButton()
     }

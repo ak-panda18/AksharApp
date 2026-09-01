@@ -16,23 +16,23 @@ struct OnboardingView: View {
 
     private let pages: [OnboardingPage] = [
         OnboardingPage(
-            sceneImageName: "unnamed-5",
-            title: "Welcome to Akshar !",
+            sceneImageName: "onboarding_opening",
+            title: "Welcome to Aksharr !",
             subtitle: "",
             shiftImageRight: true
         ),
         OnboardingPage(
-            sceneImageName: "unnamed",
+            sceneImageName: "onboarding_reading",
             title: "Reading Made Clear",
             subtitle: "Find your rhythm and master every word !"
         ),
         OnboardingPage(
-            sceneImageName: "unnamed-2",
+            sceneImageName: "onboarding_writing",
             title: "Untangle Your Writing",
             subtitle: "Practice writing every day until your words flow smoothly !"
         ),
         OnboardingPage(
-            sceneImageName: "unnamed-3",
+            sceneImageName: "onboarding_phonics",
             title: "Build With Sounds",
             subtitle: "Play through games until every sound clicks into place !"
         )
@@ -117,6 +117,7 @@ private struct OnboardingPageView: View {
                         .resizable()
                         .scaledToFit()
                         .frame(maxHeight: geo.size.height * (isFirstPage ? 0.50 : 0.56))
+                        .scaleEffect(isFirstPage ? 1.3 : 1.0)
                         .padding(.horizontal, isFirstPage ? 0 : 10)
                         .offset(x: page.shiftImageRight ? (geo.size.width * 0.04) : 0)
 

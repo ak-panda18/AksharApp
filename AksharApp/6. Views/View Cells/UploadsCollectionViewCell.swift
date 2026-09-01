@@ -54,6 +54,7 @@ class UploadsCollectionViewCell: UICollectionViewCell {
 
         imageView.layer.borderWidth = 0
         imageView.layer.borderColor = nil
+        imageView.backgroundColor = .clear
     }
     
     func updateSelectionUI(isSelecting: Bool, isSelected: Bool) {

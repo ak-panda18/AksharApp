@@ -110,6 +110,37 @@ final class ReadingPreviewViewController: UIViewController {
         updateChevronStates()
     }
     
+    private func isLevelUnlocked(at index: Int) -> Bool {
+        if index <= 0 { return true }
+        guard isLevelUnlocked(at: index - 1) else { return false }
+        let prevLevelName = difficultyLevels[index - 1]
+        let prevStories = storyManager.getStories(for: prevLevelName)
+        guard !prevStories.isEmpty else { return true }
+        return prevStories.allSatisfy { story in
+            let (_, isCompleted) = storyManager.getProgress(for: story.id)
+            return isCompleted
+        }
+    }
+
+    private func showLockedLevelPopup() {
+        let requiredLevelName = levelIndex > 0 ? difficultyLevels[levelIndex - 1] : "Level 1"
+        let message = "Complete the stories in \(requiredLevelName) to unlock new stories!"
+        
+        let sb = storyboard ?? UIStoryboard(name: "Reading", bundle: nil)
+        guard let alertVC = sb.instantiateViewController(withIdentifier: "CustomAlertVC") as? CustomAlertViewController else { return }
+        
+        alertVC.alertTitle   = "Oh no! Level locked!"
+        alertVC.alertMessage = message
+        alertVC.buttonText   = "Let's Read!"
+        alertVC.alertImage   = UIImage(named: "sad_teddy")
+        alertVC.onBackgroundTap = { [weak alertVC] in
+            alertVC?.dismiss(animated: true)
+        }
+        alertVC.modalPresentationStyle = .overCurrentContext
+        alertVC.modalTransitionStyle   = .crossDissolve
+        present(alertVC, animated: true)
+    }
+
     private func setupCards() {
         let covers = [cover1, cover2, cover3, cover4]
         let titles = [title1, title2, title3, title4]
@@ -117,13 +148,14 @@ final class ReadingPreviewViewController: UIViewController {
         let progressViews = [progress1, progress2, progress3, progress4]
         let buttons = [readButton1, readButton2, readButton3, readButton4]
         
-        // 👇 NEW: checkpoint stacks
         let checkpointStacks = [
             stackView1,
             stackView2,
             stackView3,
             stackView4
         ]
+        
+        let isUnlocked = isLevelUnlocked(at: levelIndex)
         
         for i in 0..<4 {
             guard let cover = covers[i],
@@ -145,6 +177,13 @@ final class ReadingPreviewViewController: UIViewController {
                 
                 // EXISTING: button + progress logic
                 updateReadButton(button: button, progressView: progress, story: story)
+                
+                if !isUnlocked {
+                    button.alpha = 0.4
+                    bg.alpha = 0.6
+                } else {
+                    bg.alpha = 1.0
+                }
                 
                 // 👇 NEW: CHECKPOINT LOGIC
                 if let container = checkpointStacks[i] {
@@ -234,6 +273,9 @@ final class ReadingPreviewViewController: UIViewController {
         )
 
         button.setAttributedTitle(attributedTitle, for: .normal)
+        
+        let isUnlocked = isLevelUnlocked(at: levelIndex)
+        button.alpha = isUnlocked ? 1.0 : 0.4
     }
 
     private func pageProgressRatio(currentPageIndex: Int, totalPages: Int) -> Float {
@@ -282,6 +324,7 @@ final class ReadingPreviewViewController: UIViewController {
     }
     
     private func triggerHighlightIfNeeded() {
+        guard isLevelUnlocked(at: levelIndex) else { return }
 
         let difficulty = difficultyLevels[levelIndex]
 
@@ -353,6 +396,11 @@ final class ReadingPreviewViewController: UIViewController {
     
     // MARK: - Navigation
         private func openStory(at index: Int) {
+            guard isLevelUnlocked(at: levelIndex) else {
+                showLockedLevelPopup()
+                return
+            }
+
             guard index < levelStories.count,
                   let storyboard = storyboard else { return }
             
@@ -510,19 +558,29 @@ final class ReadingPreviewViewController: UIViewController {
             alpha: 1
         ).cgColor
 
-        styleCard(card1bg_view, cover: cover1, borderColor: borderColor)
-        styleCard(card2bg_view, cover: cover2, borderColor: borderColor)
-        styleCard(card3bg_view, cover: cover3, borderColor: borderColor)
-        styleCard(card4bg_view, cover: cover4, borderColor: borderColor)
+        styleCard(card1bg_view, cover: cover1, borderColor: borderColor, tag: 0)
+        styleCard(card2bg_view, cover: cover2, borderColor: borderColor, tag: 1)
+        styleCard(card3bg_view, cover: cover3, borderColor: borderColor, tag: 2)
+        styleCard(card4bg_view, cover: cover4, borderColor: borderColor, tag: 3)
     }
 
-    private func styleCard(_ background: UIView, cover: UIImageView, borderColor: CGColor) {
+    private func styleCard(_ background: UIView, cover: UIImageView, borderColor: CGColor, tag: Int) {
         background.layer.cornerRadius = 25
         background.layer.borderWidth = 7
         background.layer.borderColor = borderColor
+        background.isUserInteractionEnabled = true
+        background.tag = tag
+
+        let tap = UITapGestureRecognizer(target: self, action: #selector(cardTapped(_:)))
+        background.addGestureRecognizer(tap)
 
         cover.layer.cornerRadius = 25
         cover.clipsToBounds = true
+    }
+
+    @objc private func cardTapped(_ gesture: UITapGestureRecognizer) {
+        guard let view = gesture.view else { return }
+        openStory(at: view.tag)
     }
 
     // MARK: - Actions

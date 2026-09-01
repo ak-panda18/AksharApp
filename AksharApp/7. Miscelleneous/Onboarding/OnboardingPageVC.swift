@@ -6,7 +6,7 @@ class OnboardingPageVC: UIPageViewController, UIPageViewControllerDataSource, UI
     private var autoScrollTimer: Timer?
 
     let titles = [
-        "Welcome to Akshar !",
+        "Welcome to Aksharr !",
         "Reading Made Clear",
         "Untangle Your Writing",
         "Build With Sounds"
@@ -20,10 +20,10 @@ class OnboardingPageVC: UIPageViewController, UIPageViewControllerDataSource, UI
     ]
 
     let backgroundImages = [
-        UIImage(named: "unnamed-5"),
-        UIImage(named: "unnamed"),
-        UIImage(named: "unnamed-2"),
-        UIImage(named: "unnamed-3")
+        UIImage(named: "onboarding_opening"),
+        UIImage(named: "onboarding_reading"),
+        UIImage(named: "onboarding_writing"),
+        UIImage(named: "onboarding_phonics")
     ]
 
     override func viewDidLoad() {
