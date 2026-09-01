@@ -687,7 +687,7 @@ class Profile_ViewController: UIViewController,
         // ════════════════════════════════════════════════════════════
         let contentCard = UIView()
         contentCard.translatesAutoresizingMaskIntoConstraints = false
-        contentCard.backgroundColor    = .systemBackground
+        contentCard.backgroundColor    = .clear
         contentCard.layer.cornerRadius = 27
         contentCard.layer.masksToBounds = true
         contentCard.layer.borderColor   = UIColor.black.withAlphaComponent(0.1).cgColor
